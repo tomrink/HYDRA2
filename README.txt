@@ -8,3 +8,8 @@ To compile and run, use an IDE, for example NetBeans or Eclipse:
   (2) Add everyting under the 'src' directory.
 
   (3) Add all jar files under lib, including lib/java3d.
+
+
+You may want to use the following options for best performance:
+
+-Dvisad.java3d.imageByRef=true -Dvisad.java3d.textureNpot=true
