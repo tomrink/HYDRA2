@@ -9,6 +9,8 @@ To compile and run, use an IDE, for example NetBeans or Eclipse:
 
   (3) Add all jar files under lib, including lib/java3d.
 
+  (4) Use src/edu/wisc/ssec/hydra/DataBrowser for the 'main' class to run
+
 
 You may want to use the following options for best performance:
 
