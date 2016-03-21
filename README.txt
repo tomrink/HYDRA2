@@ -11,6 +11,8 @@ To compile and run, use an IDE, for example NetBeans or Eclipse:
 
   (4) Use src/edu/wisc/ssec/hydra/DataBrowser for the 'main' class to run
 
+  (5) Set this JVM arg: -Djava.ext.dirs=
+
 
 You may want to use the following options for best performance:
 
