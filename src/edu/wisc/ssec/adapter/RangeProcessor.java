@@ -191,8 +191,10 @@ public class RangeProcessor {
 		valid_range = getAttributeAsDoubleArray(array_name, metaStr);
 		if (valid_range != null) {
                    
-			valid_low = valid_range[0];
-			valid_high = valid_range[1];
+                        if (!(valid_range[0] == valid_range[1])) { // don't allow this. Use default if equal
+ 			        valid_low = valid_range[0];
+			        valid_high = valid_range[1];
+                        }
 
 			if (valid_range[0] > valid_range[1]) {
 				valid_low = valid_range[1];
@@ -536,9 +538,19 @@ public class RangeProcessor {
 
 			// do valid range check AFTER scaling?
 			if (! rangeCheckBeforeScaling) {
+                                isMissing = false;
 				if ((new_values[k] < valid_low) || (new_values[k] > valid_high)) {
 					new_values[k] = Float.NaN;
+                                        isMissing = true;
 				}
+                                if (missing != null && !isMissing) {
+                                         for (int mvIdx = 0; mvIdx < missing.length; mvIdx++) {
+                                                 if (new_values[k] == missing[mvIdx]) {
+                                                         new_values[k] = Float.NaN;
+                                                         break;
+                                                 }
+                                         }
+			        }                                
 			}
 		}
 		return new_values;
@@ -643,9 +655,19 @@ public class RangeProcessor {
 
 			// do valid range check AFTER scaling?
 			if (! rangeCheckBeforeScaling) {
+                                isMissing = false;
 				if ((new_values[k] < valid_low) || (new_values[k] > valid_high)) {
 					new_values[k] = Float.NaN;
+                                        isMissing = true;
 				}
+                                if (missing != null && !isMissing) {
+                                         for (int mvIdx = 0; mvIdx < missing.length; mvIdx++) {
+                                                 if (new_values[k] == missing[mvIdx]) {
+                                                         new_values[k] = Float.NaN;
+                                                         break;
+                                                 }
+                                         }
+			        }
 			}
 			
 		}

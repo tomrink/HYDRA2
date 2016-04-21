@@ -49,7 +49,7 @@ public class GEOSDataSource extends DataSourceImpl {
   private ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
   private ArrayList<GOESGridAdapter> adapters = new ArrayList<GOESGridAdapter>();
   
-  double default_stride = 4;
+  double default_stride = 10;
   
   public GEOSDataSource(String filename) {
      this(filename, 4);
@@ -92,8 +92,11 @@ public class GEOSDataSource extends DataSourceImpl {
               if (stndName.equals("projection_x_coordinate")) {
                  projXCoordVars.put(varName, var);
               }
-              if (stndName.equals("projection_y_coordinate")) {
+              else if (stndName.equals("projection_y_coordinate")) {
                  projYCoordVars.put(varName, var);
+              }
+              else if (stndName.equals("time")) {
+                 timeCoordVars.put(varName, var);
               }
            }
            else {
@@ -103,6 +106,7 @@ public class GEOSDataSource extends DataSourceImpl {
 
         if (rank == 1) {
            attr = var.findAttribute("units");
+           String[] dimNames = reader.getDimensionNames(varName);
            if (attr != null) {
               String str = attr.getStringValue();
               visad.Unit unit = null;
@@ -112,7 +116,9 @@ public class GEOSDataSource extends DataSourceImpl {
               catch (Exception e) {
               }
               if (unit != null && unit.isConvertible(visad.SI.second)) {
-                 timeCoordVars.put(varName, var);
+                 if (varName.equals(dimNames[0])) {
+                    timeCoordVars.put(varName, var);
+                 }
               }
            }
         }
@@ -136,21 +142,6 @@ public class GEOSDataSource extends DataSourceImpl {
         Variable varX = null;
         Variable varY = null;
         Variable varT = null;
-        
-        /*
-        for (int k=0; k<strs.length; k++) {
-           varX = projXCoordVars.get(strs[k]);
-           if (varX != null) break;
-        }
-        for (int k=0; k<strs.length; k++) {
-           varY = projYCoordVars.get(strs[k]);
-           if (varY != null) break;
-        }
-        for (int k=0; k<strs.length; k++) {
-           varT = timeCoordVars.get(strs[k]);
-           if (varT != null) break;
-        }
-        */        
         
         for (int k=0; k<dimNames.length; k++) {
            Iterator itr = projXCoordVars.keySet().iterator();
@@ -202,8 +193,6 @@ public class GEOSDataSource extends DataSourceImpl {
             metadata.put(GOESGridAdapter.gridX_name, geosInfo.getXDimName());
             metadata.put(GOESGridAdapter.gridY_name, geosInfo.getYDimName());
             metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
-            //metadata.put(GOESGridAdapter.scale_name, "scale_factor");
-            //metadata.put(GOESGridAdapter.offset_name, "add_offset");
 
             GOESGridAdapter goesAdapter = new GOESGridAdapter(reader, metadata, geosInfo.getMapProjection(), default_stride);
             HashMap subset = goesAdapter.getDefaultSubset();
@@ -303,16 +292,29 @@ class GEOSInfo {
          tDimName = (reader.getDimensionNames(tVarName))[0];
          tDimLen = reader.getDimensionLength(tDimName);      
       }
-
+      
+      double scale_x = 5.588799029559623E-5;
+      double offset_x = -0.15371991730803744;
+      double scale_y = 5.588799029559623E-5;
+      double offset_y = -0.15371991730803744;
+      
       HDFArray obj = (HDFArray) reader.getArrayAttribute(xVarName, "scale_factor");
-      double scale_x = ((double[]) obj.getArray())[0];
+      if (obj != null) {
+         scale_x = ((double[]) obj.getArray())[0];
+      }
       obj = (HDFArray) reader.getArrayAttribute(xVarName, "add_offset");
-      double offset_x = ((double[]) obj.getArray())[0];
+      if (obj != null) {
+         offset_x = ((double[]) obj.getArray())[0];
+      }
 
       obj = (HDFArray) reader.getArrayAttribute(yVarName, "scale_factor");
-      double scale_y = ((double[]) obj.getArray())[0];
+      if (obj != null) {
+         scale_y = ((double[]) obj.getArray())[0];
+      }
       obj = (HDFArray) reader.getArrayAttribute(yVarName, "add_offset");
-      double offset_y = ((double[]) obj.getArray())[0];
+      if (obj != null) {
+         offset_y = ((double[]) obj.getArray())[0];
+      }
       
       obj = (HDFArray) reader.getArrayAttribute(projVar.getShortName(), "longitude_of_projection_origin");
       if (obj.getType().equals(Double.TYPE)) {

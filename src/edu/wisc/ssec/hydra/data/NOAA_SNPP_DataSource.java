@@ -86,13 +86,10 @@ public class NOAA_SNPP_DataSource extends DataSourceImpl {
    public NOAA_SNPP_DataSource(File[] files) throws Exception {
       super(new DataSourceDescriptor(), "SNPP", "SNPP", new Hashtable());
       
-      ArrayList<File> geoFileList = new ArrayList<File>();
-
       File file = files[0];
       String name = file.getName();
-      File geoFile;
      
-      File[] geoFiles = new File[files.length];
+      File[] geoFiles = null;
       
       String prefix = null;
       if (name.startsWith("SATMS")) {
@@ -101,30 +98,35 @@ public class NOAA_SNPP_DataSource extends DataSourceImpl {
       else if (name.startsWith("SCRIS")) {
          prefix = "GCRSO_npp";
       }
-      else {
+      else if (!(name.startsWith("GATMO-SATMS") || name.startsWith("GCRSO-SCRIS"))) {
          throw new Exception("unknown SNPP filename prefix: "+name);
       }
       
-      File dir = new File(file.getParent());
-      File[] list = dir.listFiles();
-      for (int k=0; k<list.length; k++) {
-         if (list[k].getName().startsWith(prefix)) {
-            geoFileList.add(list[k]); 
+      if (prefix != null) {
+         geoFiles = new File[files.length];
+         ArrayList<File> geoFileList = new ArrayList<File>();
+        
+         File dir = new File(file.getParent());
+         File[] list = dir.listFiles();
+         for (int k=0; k<list.length; k++) {
+            if (list[k].getName().startsWith(prefix)) {
+               geoFileList.add(list[k]); 
+            }
          }
-      }
-      
-      for (int i=0; i<files.length; i++) {
-         name = files[i].getName();
-         String[] strs = name.split("_");
-         String regex = prefix+"_"+strs[2]+"_"+strs[3]+"_"+strs[4]+"_"+strs[5]+".*";
-         Pattern pattern = Pattern.compile(regex);
-         for (int k=0; k<geoFileList.size(); k++) {
-            geoFile = geoFileList.get(k);
-            Matcher matcher = pattern.matcher(geoFile.getName());
-            if (matcher.find()) {
-              geoFiles[i] = geoFile;
-              break;
-            }      
+
+         for (int i=0; i<files.length; i++) {
+            name = files[i].getName();
+            String[] strs = name.split("_");
+            String regex = prefix+"_"+strs[2]+"_"+strs[3]+"_"+strs[4]+"_"+strs[5]+".*";
+            Pattern pattern = Pattern.compile(regex);
+            for (int k=0; k<geoFileList.size(); k++) {
+               File geoFile = geoFileList.get(k);
+               Matcher matcher = pattern.matcher(geoFile.getName());
+               if (matcher.find()) {
+                 geoFiles[i] = geoFile;
+                 break;
+               }      
+            }
          }
       }
       
@@ -139,18 +141,23 @@ public class NOAA_SNPP_DataSource extends DataSourceImpl {
    }
    
    void init(File[] files, File[] geoFiles) throws Exception {
-      ArrayList<NetCDFFile> ncdfal = new ArrayList<NetCDFFile>();
-      ArrayList<NetCDFFile> ncdfalGeo = new ArrayList<NetCDFFile>();
-      
       int numGrans = files.length;
       
+      ArrayList<NetCDFFile> ncdfal = new ArrayList<NetCDFFile>();
       for (int k=0; k<files.length; k++) {
          ncdfal.add(new NetCDFFile(files[k].getAbsolutePath()));
-         ncdfalGeo.add(new NetCDFFile(geoFiles[k].getAbsolutePath()));
       }
-      
       GranuleAggregation aggReader = new GranuleAggregation(ncdfal, "Track");
-      GranuleAggregation aggGeoReader = new GranuleAggregation(ncdfalGeo, "Track");
+      
+      GranuleAggregation aggGeoReader = null;
+      if (geoFiles != null) {
+         ArrayList<NetCDFFile> ncdfalGeo = new ArrayList<NetCDFFile>();
+         for (int k=0; k<files.length; k++) {
+            ncdfal.add(new NetCDFFile(files[k].getAbsolutePath()));
+            ncdfalGeo.add(new NetCDFFile(geoFiles[k].getAbsolutePath()));
+         }  
+         aggGeoReader = new GranuleAggregation(ncdfalGeo, "Track");     
+      }
       
       String name = files[0].getName();
       String[] strs = name.split("_");
@@ -159,11 +166,13 @@ public class NOAA_SNPP_DataSource extends DataSourceImpl {
       MultiSpectralData msd = null;
       String[] productPaths = null;
       String geoDatasetPath = null;
-      if (prodStr.startsWith("SATMS")) {
+      if (prodStr.contains("SATMS")) {
+         prodStr = "SATMS";
          geoDatasetPath = "All_Data/ATMS-SDR-GEO_All/";
          msd = buildATMS(aggReader, aggGeoReader, ncdfal, prodStr, geoDatasetPath);
       }
-      else if (prodStr.startsWith("SCRIS")) {
+      else if (prodStr.contains("SCRIS")) {
+         prodStr = "SCRIS";
          geoDatasetPath = "All_Data/CrIS-SDR-GEO_All/";
          String path = getProductName(prodStr);
          productPaths = new String[] {path+"ES_RealLW", path+"ES_RealMW", path+"ES_RealSW"};

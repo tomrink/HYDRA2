@@ -34,7 +34,7 @@ public class DataSource {
            GenericDataSource dataSource = new GenericDataSource(files);
            return dataSource;
         }
-        if (name.contains("ABI-L2-CMIP")) {
+        if (name.contains("ABI-L2-CMIP") || name.startsWith("HS_H08") || name.contains("HIMAWARI8-AHI")) {
            GEOSDataSource dataSource = new GEOSDataSource(fileNames[0]);
            return dataSource;
         }
@@ -48,7 +48,7 @@ public class DataSource {
           ArrayList<File> dataList = new <File>ArrayList();
           for (int i=0; i<files.length; i++) {
              String fname = files[i].getName();
-             if (fname.startsWith("SCRIS")) {
+             if (fname.startsWith("SCRIS") || fname.startsWith("GCRSO-SCRIS_npp")) {
                 dataList.add(files[i]);
              }
           }
@@ -514,10 +514,10 @@ public class DataSource {
      else if (filename.startsWith("viirs_l1b")) {
        desc = "VIIRS";
      }
-     else if (filename.startsWith("SCRIS")) {
+     else if (filename.startsWith("SCRIS_npp") || filename.startsWith("GCRSO-SCRIS_npp")) {
        desc = "CrIS SDR";
      }
-     else if (filename.startsWith("SATMS_npp")) {
+     else if (filename.startsWith("SATMS_npp") || filename.startsWith("GATMO-SATMS_npp")) {
        desc = "ATMS SDR";
      }
      else if (filename.contains("L1B.AIRS_Rad")) {

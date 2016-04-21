@@ -290,16 +290,12 @@ public class MultiDimensionDataSource extends HydraDataSource {
           String[] rangeNames;
           
           if (name.contains("SEADAS_modis")) {
-             //arrayNames = new String[] {"chlor_a", "sst4", "sst", "par", "Rrs_412", "Rrs_443", "Rrs_469", "Rrs_488", "Rrs_531"};
-             //rangeNames = new String[] {"chlor", "SST_4um", "SST", "photo_rad", "Rrs_412", "Rrs_443", "Rrs_469", "Rrs_488", "Rrs_531"}; 
-             arrayNames = new String[] {"chlor_a", "sst4", "sst", "par"};
-             rangeNames = new String[] {"chlor", "SST_4um", "SST", "photo_rad"};                       
+             arrayNames = new String[] {"chlor_a", "sst4", "sst", "par", "Rrs_412", "Rrs_443", "Rrs_469", "Rrs_488", "Rrs_531"};
+             rangeNames = new String[] {"chlor", "SST_4um", "SST", "photo_rad", "Rrs_412", "Rrs_443", "Rrs_469", "Rrs_488", "Rrs_531"}; 
           }
           else {
-             //arrayNames = new String[] {"chlor_a", "sst3", "sst", "par", "Rrs_410", "Rrs_443", "Rrs_486", "Rrs_551", "Rrs_671"};
-             //rangeNames = new String[] {"chlor", "SST_3", "SST", "photo_rad", "Rrs_410", "Rrs_443", "Rrs_486", "Rrs_551", "Rrs_671"};
-             arrayNames = new String[] {"chlor_a", "sst3", "sst", "par"};
-             rangeNames = new String[] {"chlor", "SST_3", "SST", "photo_rad"};             
+             arrayNames = new String[] {"chlor_a", "sst3", "sst", "par", "Rrs_410", "Rrs_443", "Rrs_486", "Rrs_551", "Rrs_671"};
+             rangeNames = new String[] {"chlor", "SST_3", "SST", "photo_rad", "Rrs_410", "Rrs_443", "Rrs_486", "Rrs_551", "Rrs_671"};
           }
 
           adapters = new MultiDimensionAdapter[arrayNames.length];

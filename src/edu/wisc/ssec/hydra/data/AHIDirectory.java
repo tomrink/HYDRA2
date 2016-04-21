@@ -80,7 +80,6 @@ public class AHIDirectory extends DataSourceImpl {
             if (!used[t]) {
               File file = files[t];
               String name = file.getName();
-              System.out.println(name);
               if (name.startsWith("HS_H08") && name.contains(bandNames[k]) && name.endsWith(".nc")) {
                 fileList.add(file);
                 used[t] = true;
