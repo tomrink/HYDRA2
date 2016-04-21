@@ -475,9 +475,11 @@ public class MultiDimensionDataSource extends HydraDataSource {
           hasImagePreview = true;
           String path = "mod06/Data_Fields/";
           String[] arrayNames = new String[] {"Cloud_Optical_Thickness", "Cloud_Effective_Radius", "Cloud_Water_Path"};
-          String[] rangeNames = new String[] {"CldOptThk", "CldEffRad", "CldWaterPath"};
+          //String[] rangeNames = new String[] {"CldOptThk", "CldEffRad", "CldWaterPath"};
+          String[] rangeNames = new String[] {"Cloud_Optical_Thickness", "Cloud_Effective_Radius", "Cloud_Water_Path"};
           String[] arrayNames_5km = new String[] {"Cloud_Top_Pressure", "Cloud_Top_Temperature", "Cloud_Fraction", "Cloud_Phase_Infrared"};
-          String[] rangeNames_5km = new String[] {"CldTopPress", "CldTopTemp", "CldFrac", "CldPhaseEmis"};
+          //String[] rangeNames_5km = new String[] {"CldTopPress", "CldTopTemp", "CldFrac", "CldPhaseEmis"};
+          String[] rangeNames_5km = new String[] {"Cloud_Top_Pressure", "Cloud_Top_Temperature", "Cloud_Fraction", "Cloud_Phase_Infrared"};
   
           adapters = new MultiDimensionAdapter[arrayNames.length+arrayNames_5km.length];
           defaultSubsets = new HashMap[arrayNames.length+arrayNames_5km.length];

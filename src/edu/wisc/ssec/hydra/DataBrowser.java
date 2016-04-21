@@ -49,7 +49,7 @@ import java.util.HashMap;
 
 public class DataBrowser extends HydraDisplay implements ActionListener, TreeSelectionListener, TreeExpansionListener {
 
-   public static String version = "3.6.6";
+   public static String version = "3.7.0";
 
    private static DataBrowser instance = null;
 

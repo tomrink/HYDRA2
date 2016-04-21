@@ -5,7 +5,7 @@ To compile and run, use an IDE, for example NetBeans or Eclipse:
 
   (1) Java SDK, 7 or later, must be installed.
   
-  (2) Add everyting under the 'src' directory.
+  (2) Add everything under the 'src' directory.
 
   (3) Add all jar files under lib, including lib/java3d.
 
