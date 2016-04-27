@@ -268,12 +268,7 @@ public class HistogramField {
             h01 = hist0[1];
         }
 
-        for (int k = 0; k < maskRange[0].length; k++) {
-            if (maskRange[0][k] == maskVal) {
-                maskRange[0][k] = Float.NaN;
-                mask[(byte)maskVal][k] = Byte.MAX_VALUE;
-            }
-        }
+        clearMaskField(maskVal);
 
         int lenX = set0.getLengthX();
 
@@ -288,7 +283,7 @@ public class HistogramField {
             }
         }
 
-        mask_field.setSamples(maskRange, false);
+        mask_field.setSamples(maskRange, true);
     }
 
     public void markMaskFieldByCurve(float[][] curve, float maskVal) throws Exception {
@@ -493,13 +488,27 @@ public class HistogramField {
             }
         }
 
-        mask_field.setSamples(maskRange, false);
+        mask_field.setSamples(maskRange, true);
     }
 
     private void reorder(byte maskVal) {
-       order[2] = order[1];
-       order[1] = order[0];
-       order[0] = maskVal;
+       if (order[0] == maskVal) {
+          return;
+       }
+       else if (maskVal == order[1]) {
+          order[1] = order[0];
+          order[0] = maskVal;
+       }
+       else if (maskVal == order[2]) {
+          order[2] = order[1];
+          order[1] = order[0];
+          order[0] = maskVal;
+       }
+       else {
+          order[2] = order[1];
+          order[1] = order[0];
+          order[0] = maskVal;          
+       }
     }
 
     public void clearMaskField(float maskVal) {
@@ -507,18 +516,20 @@ public class HistogramField {
             maskRange[0][k] = Float.NaN;
             mask[(byte)maskVal][k] = Byte.MAX_VALUE;
         }
-
-        for (int t=0; t<order.length; t++) {
-           if (order[t] == (byte)maskVal) {
-               order[t] = Byte.MAX_VALUE;
+  
+        byte[] lcl_order = new byte[3];
+        System.arraycopy(order, 0, lcl_order, 0, 3);
+        for (int t=0; t<lcl_order.length; t++) {
+           if (lcl_order[t] == (byte)maskVal) {
+               lcl_order[t] = Byte.MAX_VALUE;
            }
         }
 
         for (int t=order.length-1; t >=0; t--) {
-            if (order[t] != Byte.MAX_VALUE) {
+            if (lcl_order[t] != Byte.MAX_VALUE) {
                for (int k=0; k<maskRange[0].length; k++) {
-                   if (mask[order[t]][k] != Byte.MAX_VALUE) {
-                      maskRange[0][k] = (float) order[t];
+                   if (mask[lcl_order[t]][k] != Byte.MAX_VALUE) {
+                      maskRange[0][k] = (float) lcl_order[t];
                    }
                }
             }
@@ -527,6 +538,6 @@ public class HistogramField {
 
     public void resetMaskField(float maskVal) throws Exception {
         clearMaskField(maskVal);
-        mask_field.setSamples(maskRange, false);
+        mask_field.setSamples(maskRange, true);
     }
 }
