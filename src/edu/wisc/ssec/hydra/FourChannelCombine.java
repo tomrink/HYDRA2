@@ -128,7 +128,7 @@ public class FourChannelCombine extends Compute {
       operandEnabled[2] = false;
       operandEnabled[3] = false;
  
-      String[] operations = new String[] {"-", "+", "/", "*"};
+      String[] operations = new String[] {"-", "+", "/", "*", " "};
       operandA = colorComponents[0];
       operandB = colorComponents[1];
       comboAB = new JComboBox(operations);
@@ -424,6 +424,9 @@ public class FourChannelCombine extends Compute {
        else if (operationAB == "*") {
           fldAB = (FieldImpl) fldA.multiply(fldB);
        }
+       else if (operationAB == " ") {
+          fldAB = fldA;
+       }
 
        FieldImpl fldCD = null;
        if (!operandD.isEmpty) {
@@ -526,6 +529,9 @@ public class FourChannelCombine extends Compute {
             operName = "["+nameAB+"]"+operationLR+"["+nameCD+"]";
          }
       }
+      
+      operName = operName.trim();
+      operName = operName.replace('.', ',');
 
       return operName;
    }

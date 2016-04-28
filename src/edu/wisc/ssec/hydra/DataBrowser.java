@@ -91,7 +91,6 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
 
    HashMap<DefaultMutableTreeNode, TreePath> datasetToDefaultPath = new HashMap<DefaultMutableTreeNode, TreePath>();
 
-   //HashMap<DefaultMutableTreeNode, JComponent> datasetToDefaultComp = new HashMap<DefaultMutableTreeNode, JComponent>();
    HashMap<DefaultMutableTreeNode, PreviewSelection> datasetToDefaultComp = new HashMap<DefaultMutableTreeNode, PreviewSelection>();
 
    Hydra hydra = null;
@@ -99,6 +98,8 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
    DefaultMutableTreeNode selectedLeafNode = null;
 
    DefaultMutableTreeNode selectedNode = null;
+   
+   TreePath currentDatasetPath = null;
 
    FormulaSelection formulaSelection = null;
 
@@ -196,7 +197,6 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
       return previewDisplay;
    }
 
-   //public void addDataSetTree(final DefaultMutableTreeNode node, TreePath firstPath, Hydra hydra, final JComponent comp) {
    public void addDataSetTree(final DefaultMutableTreeNode node, TreePath firstPath, Hydra hydra, final PreviewSelection comp) {
        datasetToHydra.put(node, hydra);
        Object[] nodes = firstPath.getPath();
@@ -234,14 +234,6 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
            }
        });
    }
-
-   /* keep for now, replaced by below
-   public void updateSpatialTemporalSelectionComponent(JComponent comp) {
-      if (splitPane.getRightComponent() != comp) {
-         splitPane.setRightComponent(comp);
-      }
-   }
-   */
 
    public void updateSpatialTemporalSelectionComponent(PreviewSelection comp) {
       if (first) {
@@ -367,8 +359,19 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
            selectedLeafNode = node;
            selectedNode = null;
            hydra = datasetToHydra.get(node.getParent());
-
-
+           
+           TreePath tpath;
+           if (!(node.getParent() == userNode)) {  
+              tpath = new TreePath(((DefaultMutableTreeNode)node.getParent()).getPath());              
+              currentDatasetPath = tpath;
+           }  
+           else {
+              tpath = currentDatasetPath;
+           }
+           rootTree.removeTreeSelectionListener(this);
+           rootTree.addSelectionPath(tpath);
+           rootTree.addTreeSelectionListener(this);
+              
            // TODO: this block of code modifies the display action gui for the multiChannelView
            // Need to think about a generalized approach.  Note: hydra will be null for combinations
            // hence the check.
@@ -400,10 +403,9 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
               }
            }
            // ---------------------------------
-
-
         }
         else {
+           currentDatasetPath = new TreePath(((DefaultMutableTreeNode)node).getPath());
            selectedNode = node;
            selectedLeafNode = null;
            updateSpatialTemporalSelectionComponent(datasetToDefaultComp.get(node));
@@ -504,10 +506,17 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
           if (selectedLeafNode == userNode) {
              return;
           }
+          rootTree.removeTreeSelectionListener(this);
           rootModel.removeNodeFromParent(selectedLeafNode);
-          int cnt  = rootModel.getChildCount(userNode);
-          if (cnt >= 1) {
+          cnt = rootModel.getChildCount(userNode);
+          if (cnt > 0) {
+             DefaultMutableTreeNode node = (DefaultMutableTreeNode) userNode.getChildAt(0);
+             selectedLeafNode = node;
+             TreePath tpath = new TreePath(node.getPath());                
+             rootTree.setSelectionPath(tpath);
           }
+          rootTree.addSelectionPath(currentDatasetPath);
+          rootTree.addTreeSelectionListener(this);
        }
        else if (cmd.equals("OpenRemote")) {
        }
@@ -776,10 +785,6 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
       actionPanel.add(actionType);
 
       return actionPanel;
-   }
-
-   public DefaultMutableTreeNode getSelectedLeafNode() {
-      return selectedLeafNode;
    }
 
    public void setCursorToWait() {

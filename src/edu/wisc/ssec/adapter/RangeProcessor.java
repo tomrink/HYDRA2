@@ -1,6 +1,7 @@
 package edu.wisc.ssec.adapter;
 
 import java.util.HashMap;
+import java.util.StringTokenizer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -394,8 +395,13 @@ public class RangeProcessor {
                         }
                         else if (arrayAttr.getType().equals(String.class)) {
                                 String[] attr = (String[]) arrayAttr.getArray();
-                                fltArray = new float[attr.length];
-                                for (int k=0; k<attr.length; k++) fltArray[k] = Float.valueOf(attr[0]);
+                                StringTokenizer stok = new StringTokenizer(attr[0], ", ");
+                                int num = stok.countTokens();
+                                fltArray = new float[num];
+                                for (int k=0; k<num; k++) {
+                                   String str = stok.nextToken();
+                                   fltArray[k] = Float.valueOf(str);
+                                }
                         }
 
                     
@@ -450,8 +456,13 @@ public class RangeProcessor {
                         }
                         else if (arrayAttr.getType().equals(String.class)) {
                                 String[] attr = (String[]) arrayAttr.getArray();
-                                dblArray = new double[attr.length];
-                                for (int k=0; k<attr.length; k++) dblArray[k] = Double.valueOf(attr[0]);
+                                StringTokenizer stok = new StringTokenizer(attr[0], ", ");
+                                int num = stok.countTokens();
+                                dblArray = new double[num];
+                                for (int k=0; k<num; k++) {
+                                   String str = stok.nextToken();
+                                   dblArray[k] = Double.valueOf(str);
+                                }
                         }
 		}
 
