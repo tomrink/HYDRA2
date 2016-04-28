@@ -74,7 +74,7 @@ public class FourChannelCombine extends Compute {
    boolean needReproject = true;
    
    String dateTimeStr = null;
-
+   
    public FourChannelCombine() {
    }
 
@@ -492,8 +492,9 @@ public class FourChannelCombine extends Compute {
       String nameA = null;
       if (!operandA.isEmpty()) {
          nameA = operandA.getName();
-         String txt = multplrA.getText();
-         if (txt != "1") {
+         String txt = multplrA.getText().trim();
+         float flt = Float.valueOf(txt);
+         if (flt != 1f) {
             nameA = txt+"*"+nameA;
          }
          operName = nameA;
@@ -502,8 +503,9 @@ public class FourChannelCombine extends Compute {
       String nameB = null;
       if (!operandB.isEmpty()) {
          nameB = operandB.getName();
-         String txt = multplrB.getText();
-         if (txt != "1") {
+         String txt = multplrB.getText().trim();
+         float flt = Float.valueOf(txt);
+         if (flt != 1f) {         
             nameB = txt+"*"+nameB;
          }
          nameAB = nameA+operationAB+nameB;
@@ -513,16 +515,18 @@ public class FourChannelCombine extends Compute {
       String nameC = null;
       if (!operandC.isEmpty()) {
          nameC = operandC.getName();
-         String txt = multplrC.getText();
-         if (txt != "1") {
+         String txt = multplrC.getText().trim();
+         float flt = Float.valueOf(txt);
+         if (flt != 1f) {         
             nameC = txt+"*"+nameC;
          }
          operName = "["+operName+"]"+operationLR+nameC;
 
          if (!operandD.isEmpty()) {
             String nameD = operandD.getName();
-            txt = multplrD.getText();
-            if (txt != "1") {
+            txt = multplrD.getText().trim();
+            flt = Float.valueOf(txt);
+            if (flt != 1f) {            
                nameD = txt+"*"+nameD;
             }
             nameCD = nameC+operationCD+nameD;
