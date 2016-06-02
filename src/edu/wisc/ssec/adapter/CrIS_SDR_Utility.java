@@ -28,6 +28,7 @@
 
 package edu.wisc.ssec.adapter;
 
+import edu.wisc.ssec.hydra.data.MultiSpectralDataSource;
 import visad.*;
 
 public class CrIS_SDR_Utility {

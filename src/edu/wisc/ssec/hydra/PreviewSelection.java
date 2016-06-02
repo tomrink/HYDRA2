@@ -7,64 +7,27 @@ import edu.wisc.ssec.adapter.HydraContext;
 
 import java.rmi.RemoteException;
 
-import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.List;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataSelectionComponent;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.GeoLocationInfo;
-import ucar.unidata.data.GeoSelection;
-import ucar.unidata.data.GeoSelectionPanel;
+import edu.wisc.ssec.hydra.data.DataSource;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataGroup;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import ucar.unidata.data.grid.GridUtil;
 
-import ucar.unidata.idv.DisplayConventions;
-
-import ucar.unidata.geoloc.*;
 import ucar.unidata.util.Range;
 import ucar.unidata.util.ColorTable;
 
 import visad.Data;
 import visad.FlatField;
-import visad.GriddedSet;
 import visad.Gridded2DSet;
-import visad.SampledSet;
 import visad.VisADException;
 import visad.georef.MapProjection;
-import visad.data.mcidas.BaseMapAdapter;
-
-import java.io.File;
-import java.net.URL;
-
-import javax.swing.*;
-import javax.swing.event.*;
-import java.awt.geom.Rectangle2D;
 
 import visad.*;
-import visad.bom.RubberBandBoxRendererJ3D;
-import visad.java3d.DisplayImplJ3D;
-import visad.java3d.TwoDDisplayRendererJ3D;
 import ucar.unidata.view.geoloc.MapProjectionDisplayJ3D;
-import ucar.unidata.view.geoloc.MapProjectionDisplay;
-import java.awt.Component;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import ucar.visad.display.XYDisplay;
-import ucar.visad.display.MapLines;
 import ucar.visad.display.DisplayMaster;
 import ucar.visad.display.LineDrawing;
-import ucar.visad.display.RubberBandBox;
-
-import ucar.visad.ProjectionCoordinateSystem;
-import ucar.unidata.geoloc.projection.LatLonProjection;
 
 
 public class PreviewSelection {
@@ -78,13 +41,12 @@ public class PreviewSelection {
 
       double[] x_coords = new double[2];
       double[] y_coords = new double[2];
-      boolean hasSubset = false;
       MapProjectionDisplayJ3D mapProjDsp;
       DisplayMaster dspMaster;
 
-      DataSourceImpl dataSource;
+      DataSource dataSource;
 
-      DataCategory dataCategory;
+      DataGroup dataCategory;
 
       LineDrawing boxDsp = null;
 
@@ -125,11 +87,8 @@ public class PreviewSelection {
              MapProjection sample, Range displayRange, byte[][] colorTable) throws VisADException, RemoteException {
 
         this.dataChoice = dataChoice;
-        List list = dataChoice.getCategories();
-        if (!list.isEmpty()) {
-           this.dataCategory = (DataCategory) list.get(0);
-        }
-        this.dataSource = (DataSourceImpl) ((DirectDataChoice)dataChoice).getDataSource();
+        this.dataCategory = dataChoice.getGroup();
+        this.dataSource = (DataSource) ((DataChoice)dataChoice).getDataSource();
         this.image = image;
 
         Range[] range = GridUtil.fieldMinMax(this.image);
@@ -203,8 +162,8 @@ public class PreviewSelection {
          else {
             min = dMin;
             max = dMax;
-            clrTbl = Hydra.getDefaultColorTable(dataSource, dataChoice).getColorTable();
-            Range rng = Hydra.getDefaultColorRange(dataSource, dataChoice);
+            clrTbl = dataSource.getDefaultColorTable(dataChoice).getColorTable();
+            Range rng = dataSource.getDefaultColorRange(dataChoice);
             if (rng != null) {
                min = rng.getMin();
                max = rng.getMax();
@@ -218,37 +177,29 @@ public class PreviewSelection {
       }
 
       public void getSubsetCoords(DataChoice choice, double[] trkCoords, double[] xtrkCoords) {
-        //- get the subset info from the incoming dataChoice
-        Hashtable table = dataChoice.getProperties();
-        Enumeration keys = table.keys();
-        while (keys.hasMoreElements()) {
-           Object key = keys.nextElement();
-           if (key instanceof MultiDimensionSubset) {
-             hasSubset = true;
-             select = (MultiDimensionSubset) table.get(key);
-             HashMap map = select.getSubset();
+         // get subset info from incoming DataChoice
+         select = (MultiDimensionSubset) choice.getDataSelection();
+         if (select != null) {
+            HashMap map = select.getSubset();
 
-             double[] coords = (double[]) map.get("Track");
-             if (coords == null) {
+            double[] coords = (double[]) map.get("Track");
+            if (coords == null) {
                coords = (double[]) map.get("GridY");
-             }
+            }
 
-             trkCoords[0] = coords[0];
-             trkCoords[1] = coords[1];
-             trkCoords[2] = coords[2];
+            trkCoords[0] = coords[0];
+            trkCoords[1] = coords[1];
+            trkCoords[2] = coords[2];
 
-             coords = (double[]) map.get("XTrack");
-             if (coords == null) {
+            coords = (double[]) map.get("XTrack");
+            if (coords == null) {
                coords = (double[]) map.get("GridX");
-             }
+            }
 
-             xtrkCoords[0] = coords[0];
-             xtrkCoords[1] = coords[1];
-             xtrkCoords[2] = coords[2];
-
-             return;
-           }
-        }
+            xtrkCoords[0] = coords[0];
+            xtrkCoords[1] = coords[1];
+            xtrkCoords[2] = coords[2];
+         }
       }
 
       public void setupFromCoords(double[] trkCoords, double[] xtrkCoords) throws VisADException, RemoteException {
@@ -332,15 +283,35 @@ public class PreviewSelection {
       }
 
       public void applyToDataSelection(DataSelection dataSelection) {
-         if (hasSubset) {
-           Hashtable table = dataChoice.getProperties();
-           table.put(MultiDimensionSubset.key, hydraContext.getMultiDimensionSubset());
-
-           table = dataSelection.getProperties();
-           table.put(MultiDimensionSubset.key, hydraContext.getMultiDimensionSubset());
-
-           dataChoice.setDataSelection(dataSelection);
+         MultiDimensionSubset select = hydraContext.getMultiDimensionSubset();
+         
+         String key = "XTrack";
+         double[] coords = select.getCoords(key);
+         if (coords != null) {
+            ((MultiDimensionSubset)dataSelection).setCoords(key, coords);
          }
+         else {
+            key = "GridX";
+            coords = select.getCoords(key);
+            if (coords != null) {
+               ((MultiDimensionSubset)dataSelection).setCoords(key, coords);              
+            }
+         }
+         
+         key = "Track";
+         coords = select.getCoords(key);
+         if (coords != null) {
+            ((MultiDimensionSubset)dataSelection).setCoords(key, coords);
+         }
+         else {
+            key = "GridY";
+            coords = select.getCoords(key);
+            if (coords != null) {
+               ((MultiDimensionSubset)dataSelection).setCoords(key, coords);              
+            }            
+         }
+
+         dataChoice.setDataSelection(dataSelection);
       }
 
       public void updateBoxSelector() {
@@ -522,9 +493,9 @@ public class PreviewSelection {
      return newArray;
    }
 
-   public static FlatField makePreviewImage(DataSourceImpl dataSource, DataChoice choice, String sourceDescription) throws Exception {
+   public static FlatField makePreviewImage(DataSource dataSource, DataChoice choice, String sourceDescription) throws Exception {
 
-      FlatField image = (FlatField) dataSource.getData(choice, null, null, null);
+      FlatField image = (FlatField) dataSource.getData(choice, null);
       if (sourceDescription != null) {
          if (sourceDescription.contains("CrIS")) {
             image = edu.wisc.ssec.adapter.CrIS_SDR_Utility.makeViewableCrISpreview(image);

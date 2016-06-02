@@ -1,32 +1,20 @@
 package edu.wisc.ssec.hydra.data;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.ArrayList;
 import edu.wisc.ssec.adapter.SwathAdapter;
 import edu.wisc.ssec.adapter.AtmSoundingAdapter;
-import edu.wisc.ssec.adapter.CrIS_SDR_SwathAdapter;
-import edu.wisc.ssec.adapter.CrIS_SwathSoundingData;
 import edu.wisc.ssec.adapter.SwathSoundingData;
-import edu.wisc.ssec.adapter.NetCDFFile;
-import edu.wisc.ssec.adapter.MultiDimensionSubset;
 import edu.wisc.ssec.adapter.MultiDimensionReader;
 import edu.wisc.ssec.adapter.RangeProcessor;
 import visad.VisADException;
 import visad.Data;
-import visad.FlatField;
 import java.rmi.RemoteException;
 
 
-public class AtmSoundingDataSource extends DataSourceImpl {
+public class AtmSoundingDataSource extends DataSource {
 
    String dateTimeStamp = null;
 
@@ -38,18 +26,21 @@ public class AtmSoundingDataSource extends DataSourceImpl {
    
    ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
    ArrayList<SwathSoundingData> mySoundingDatas = new ArrayList<SwathSoundingData>();
-
+   
 
    public AtmSoundingDataSource(File directory) {
      this(directory.listFiles());
    }
 
    public AtmSoundingDataSource(File[] files) {
-      super(new DataSourceDescriptor(), "Sounding", "Sounding", new Hashtable());
 
       this.files = files;
       int numFiles = files.length;
       File file = files[0];
+      
+      dateTimeStamp = DataSource.getDateTimeStampFromFilename(file.getName());
+      description = DataSource.getDescriptionFromFilename(file.getName());
+      
       try { 
         init(file);
       } catch (Exception e) {
@@ -130,23 +121,20 @@ public class AtmSoundingDataSource extends DataSourceImpl {
    }
 
    public String getDescription() {
-     return "AIRS Retrvl";
+     return description;
    }
 
    public String getDateTimeStamp() {
-     return " ";
+     return dateTimeStamp;
+   }
+   
+   public boolean isAtmRetrieval() {
+      return true;
    }
 
-    public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
-    }
 
-
-    protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException 
+   public Data getData(DataChoice dataChoice, DataSelection dataSelection)
+            throws VisADException, RemoteException 
     {
       try {
          data = getSwathSoundingData(dataChoice);

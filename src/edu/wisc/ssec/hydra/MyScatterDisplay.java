@@ -59,8 +59,8 @@ import visad.java3d.GraphicsModeControlJ3D;
 import visad.java3d.DisplayRendererJ3D;
 import visad.util.HersheyFont;
 
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import ucar.unidata.view.geoloc.MapProjectionDisplayJ3D;
 import ucar.visad.display.DisplayMaster;
 import ucar.visad.display.LineDrawing;

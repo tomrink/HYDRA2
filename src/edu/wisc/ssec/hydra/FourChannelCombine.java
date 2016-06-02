@@ -1,30 +1,20 @@
 package edu.wisc.ssec.hydra;
 
-import edu.wisc.ssec.hydra.data.DataSource;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.border.LineBorder;
 
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
-import java.awt.Dimension;
 import java.awt.Color;
-import java.awt.Point;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
-
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.ReprojectSwath;
 
@@ -34,13 +24,7 @@ import visad.FlatField;
 import visad.FunctionType;
 import visad.RealType;
 import visad.Linear2DSet;
-import visad.VisADException;
 import visad.georef.MapProjection;
-import java.rmi.RemoteException;
-
-import visad.CoordinateSystem;
-import visad.RealTupleType;
-import visad.SetType;
 
 public class FourChannelCombine extends Compute {
 
@@ -321,9 +305,9 @@ public class FourChannelCombine extends Compute {
        }
        Linear2DSet setA = (Linear2DSet) fldA.getDomainSet();
        nameA = operandA.getName();
-       nadirResolution = DataSource.getNadirResolution(operandA.dataSource, operandA.dataChoice);
-       needReproject = DataSource.getDoReproject(operandA.dataSource, operandA.dataChoice);
-       dateTimeStr = (String) operandA.dataSource.getProperty(Hydra.dateTimeStr);
+       nadirResolution = operandA.dataSource.getNadirResolution(operandA.dataChoice);
+       needReproject = operandA.dataSource.getDoReproject(operandA.dataChoice);
+       dateTimeStr = (String) operandA.dataSource.getDateTimeStamp();
        
        boolean needReproA;
        boolean needReproB;
@@ -338,13 +322,13 @@ public class FourChannelCombine extends Compute {
        if (!operandB.isEmpty()) {
           fldB = (FlatField) operandB.getData();
           if (fltB != 1f) {
-             fldA = multiply(fltB, fldB);
+             fldB = multiply(fltB, fldB);
           }
           Linear2DSet setB = (Linear2DSet) fldB.getDomainSet();
           nameB = operandB.getName();
           needResample = !((operandA.dataSource == operandB.dataSource) && (setA.equals(setB)));
-          float res = DataSource.getNadirResolution(operandB.dataSource, operandB.dataChoice);
-          needReproB = DataSource.getDoReproject(operandB.dataSource, operandB.dataChoice);
+          float res = operandB.dataSource.getNadirResolution(operandB.dataChoice);
+          needReproB = operandB.dataSource.getDoReproject(operandB.dataChoice);
           if (res > nadirResolution) nadirResolution = res;
        }
        if (!operandC.isEmpty()) {
@@ -355,8 +339,8 @@ public class FourChannelCombine extends Compute {
           Linear2DSet setC = (Linear2DSet) fldC.getDomainSet();
           nameC = operandC.getName();
           needResample = !((operandA.dataSource == operandC.dataSource) && (setA.equals(setC)));
-          float res = DataSource.getNadirResolution(operandC.dataSource, operandC.dataChoice);
-          needReproC = DataSource.getDoReproject(operandC.dataSource, operandC.dataChoice);
+          float res = operandC.dataSource.getNadirResolution(operandC.dataChoice);
+          needReproC = operandC.dataSource.getDoReproject(operandC.dataChoice);
           if (res > nadirResolution) nadirResolution = res;
        }
        if (!operandD.isEmpty()) {
@@ -367,8 +351,8 @@ public class FourChannelCombine extends Compute {
           Linear2DSet setD = (Linear2DSet) fldD.getDomainSet();
           nameD = operandD.getName();
           needResample = !((operandA.dataSource == operandD.dataSource) && (setA.equals(setD)));
-          float res = DataSource.getNadirResolution(operandD.dataSource, operandD.dataChoice);
-          needReproD = DataSource.getDoReproject(operandD.dataSource, operandD.dataChoice);
+          float res = operandD.dataSource.getNadirResolution(operandD.dataChoice);
+          needReproD = operandD.dataSource.getDoReproject(operandD.dataChoice);
           if (res > nadirResolution) nadirResolution = res;
        }
 
@@ -381,29 +365,29 @@ public class FourChannelCombine extends Compute {
 
           int mode = Hydra.getReprojectMode();
 
-          if (DataSource.getReduceBowtie(operandA.dataSource, operandA.dataChoice)) {
-             String sensorName = DataSource.getSensorName(operandA.dataSource, operandA.dataChoice);
+          if (operandA.dataSource.getReduceBowtie(operandA.dataChoice)) {
+             String sensorName = operandA.dataSource.getSensorName(operandA.dataChoice);
              Hydra.reduceSwathBowtie(fldA, sensorName);
           }
           fldA = ReprojectSwath.swathToGrid(commonGrid, fldA, mode);
 
           if (fldB != null) {
-             if (DataSource.getReduceBowtie(operandB.dataSource, operandB.dataChoice)) {
-                String sensorName = DataSource.getSensorName(operandB.dataSource, operandB.dataChoice);
+             if (operandB.dataSource.getReduceBowtie(operandB.dataChoice)) {
+                String sensorName = operandB.dataSource.getSensorName(operandB.dataChoice);
                 Hydra.reduceSwathBowtie(fldB, sensorName);
              }
              fldB = ReprojectSwath.swathToGrid(commonGrid, fldB, mode);
           }
           if (fldC != null) {
-             if (DataSource.getReduceBowtie(operandC.dataSource, operandC.dataChoice)) {
-                String sensorName = DataSource.getSensorName(operandC.dataSource, operandC.dataChoice);
+             if (operandC.dataSource.getReduceBowtie(operandC.dataChoice)) {
+                String sensorName = operandC.dataSource.getSensorName(operandC.dataChoice);
                 Hydra.reduceSwathBowtie(fldC, sensorName);
              }
              fldC = ReprojectSwath.swathToGrid(commonGrid, fldC, mode);
           }
           if (fldD != null) {
-             if (DataSource.getReduceBowtie(operandD.dataSource, operandD.dataChoice)) {
-                String sensorName = DataSource.getSensorName(operandD.dataSource, operandD.dataChoice);
+             if (operandD.dataSource.getReduceBowtie(operandD.dataChoice)) {
+                String sensorName = operandD.dataSource.getSensorName(operandD.dataChoice);
                 Hydra.reduceSwathBowtie(fldD, sensorName);
              }
              fldD = ReprojectSwath.swathToGrid(commonGrid, fldD, mode);
@@ -420,6 +404,7 @@ public class FourChannelCombine extends Compute {
        }
        else if (operationAB == "/") {
           fldAB = (FieldImpl) fldA.divide(fldB);
+          fldAB = Hydra.infiniteToNaN(fldAB);
        }
        else if (operationAB == "*") {
           fldAB = (FieldImpl) fldA.multiply(fldB);
@@ -441,6 +426,7 @@ public class FourChannelCombine extends Compute {
           }
           else if (operationCD == "/") {
              fldCD = (FieldImpl) fldC.divide(fldD);
+             fldCD = Hydra.infiniteToNaN(fldCD);
           }
        }
        else if (!operandC.isEmpty) {
@@ -461,6 +447,7 @@ public class FourChannelCombine extends Compute {
           }
           else if (operationLR == "/") {
              fld = (FlatField) fldAB.divide(fldCD);
+             fld = (FlatField) Hydra.infiniteToNaN(fld);
           }
        }
 
@@ -546,12 +533,12 @@ public class FourChannelCombine extends Compute {
       MapProjection mp;
       if (!needResample && needReproject) {
          Operand operandA = operands[0];
-         float nadirResolution = DataSource.getNadirResolution(operandA.dataSource, operandA.dataChoice);
+         float nadirResolution = operandA.dataSource.getNadirResolution(operandA.dataChoice);
          float[][] corners = MultiSpectralData.getLonLatBoundingCorners(fld.getDomainSet());
          mp = Hydra.getSwathProjection(corners);
          Linear2DSet grd = Hydra.makeGrid(mp, corners, nadirResolution);
-         if (DataSource.getReduceBowtie(operandA.dataSource, operandA.dataChoice)) {
-            String sensorName = DataSource.getSensorName(operandA.dataSource, operandA.dataChoice);
+         if (operandA.dataSource.getReduceBowtie(operandA.dataChoice)) {
+            String sensorName = operandA.dataSource.getSensorName(operandA.dataChoice);
             Hydra.reduceSwathBowtie(fld, sensorName);
          }
          fld = ReprojectSwath.swathToGrid(grd, fld, Hydra.getReprojectMode());
@@ -563,7 +550,7 @@ public class FourChannelCombine extends Compute {
       String name = ((RealType)((FunctionType)fld.getType()).getRange()).getName();
 
       if (mode == 0 || ImageDisplay.getTarget() == null) {
-         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr);
+         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr, null);
          if (swathImage != null) {
             Hydra.displayableToImage.put(imageDsp, swathImage);
          }
@@ -574,7 +561,7 @@ public class FourChannelCombine extends Compute {
       }
       else if (mode == 2) {
          fld = Hydra.makeFlatFieldWithUniqueRange(fld);
-         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr);
+         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr, null);
          if (swathImage != null) {
             Hydra.displayableToImage.put(imageDsp, swathImage);
          }

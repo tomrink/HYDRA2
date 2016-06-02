@@ -113,4 +113,8 @@ public class HIRS_L1_NCDF_RangeProcessor extends RangeProcessor {
 
            return fltValues;
         }
+        
+        public float getWaveNumber() {
+           return wnc;
+        }
 }

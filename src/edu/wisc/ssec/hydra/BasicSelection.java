@@ -1,23 +1,16 @@
 package edu.wisc.ssec.hydra;
 
 import edu.wisc.ssec.hydra.data.DataSource;
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 
 import java.util.List;
-import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.event.*;
-import java.util.*;
 
 import javax.swing.JTree;
-import javax.swing.SwingWorker;
 import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.TreeSelectionModel;
 import javax.swing.tree.TreePath;
-import javax.swing.tree.DefaultTreeModel;
 
 import visad.FlatField;
 
@@ -38,7 +31,7 @@ public class BasicSelection extends SelectionAdapter {
 
     boolean initDone = false;
 
-    DataSourceImpl dataSource = null;
+    DataSource dataSource = null;
 
     PreviewSelection[] previewSelects = null;
 
@@ -54,14 +47,13 @@ public class BasicSelection extends SelectionAdapter {
 
     TreePath lastSelectedLeafPath = null;
 
-    public BasicSelection(DataSourceImpl dataSource, DataChoice choice) {
-       this(dataSource, choice, null);
-    }
 
-    public BasicSelection(DataSourceImpl dataSource, DataChoice choice, final Hydra hydra) {
+    public BasicSelection(DataSource dataSource, final Hydra hydra, int dataSourceId) {
         super(dataSource);
 
         this.dataSource = dataSource;
+        this.dataSourceId = dataSourceId;
+        
         dataBrowser = hydra.getDataBrowser();
         sourceDescription = hydra.getSourceDescription();
 
@@ -71,9 +63,9 @@ public class BasicSelection extends SelectionAdapter {
         previewSelects = new PreviewSelection[dataChoices.size()];
         for (int k=0; k<dataChoiceNames.length; k++) {
           dataChoiceNames[k] = ((DataChoice)dataChoices.get(k)).getName();
-          dataChoiceDescs[k] = DataSource.getDescription(dataSource, (DataChoice)dataChoices.get(k));
+          dataChoiceDescs[k] = dataSource.getDescription((DataChoice)dataChoices.get(k));
         }
-        selectedIdx = DataSource.getDefaultChoice(dataSource, dataChoices);
+        selectedIdx = dataSource.getDefaultChoice();
         defaultIdx = selectedIdx;
 
         browserTree = dataBrowser.getBrowserTree();
@@ -190,10 +182,6 @@ public class BasicSelection extends SelectionAdapter {
 
     public DataChoice getSelectedDataChoice() {
       return (DataChoice) dataChoices.get(selectedIdx);
-    }
-
-    public void setDataSourceId(int dataSourceId) {
-       this.dataSourceId = dataSourceId;
     }
 
     public String getSelectedName() {

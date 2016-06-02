@@ -1,13 +1,14 @@
 package edu.wisc.ssec.hydra;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 
 
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.SpectrumAdapter;
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
+import edu.wisc.ssec.adapter.MultiDimensionSubset;
+import edu.wisc.ssec.hydra.data.DataSource;
+import edu.wisc.ssec.hydra.data.MultiSpectralDataSource;
 
 
 import java.util.List;
@@ -21,7 +22,6 @@ import javax.swing.tree.TreePath;
 import visad.FlatField;
 
 public class MultiSpectralSelection extends SelectionAdapter {
-    public static final String PROP_CHAN = "selectedchannel";
 
     private JComponent list;
     private JComponent outerPanel;
@@ -33,7 +33,7 @@ public class MultiSpectralSelection extends SelectionAdapter {
 
     boolean initDone = false;
 
-    DataSourceImpl dataSource = null;
+    DataSource dataSource = null;
 
     JComponent[] geoTimeSelectComps = null;
 
@@ -54,14 +54,11 @@ public class MultiSpectralSelection extends SelectionAdapter {
 
     TreePath lastSelectedLeafPath = null;
 
-    public MultiSpectralSelection(MultiSpectralDataSource dataSource, DataChoice choice) {
-        this(dataSource, choice, null);
-    }
-
-    public MultiSpectralSelection(MultiSpectralDataSource dataSource, DataChoice choice, Hydra hydra) {
+    public MultiSpectralSelection(MultiSpectralDataSource dataSource, Hydra hydra, int dataSourceId) {
         super(dataSource);
 
         this.dataSource = dataSource;
+        this.dataSourceId = dataSourceId;
 
         dataChoices = dataSource.getDataChoices();
         dataChoiceNames = new String[dataChoices.size()];
@@ -230,7 +227,7 @@ public class MultiSpectralSelection extends SelectionAdapter {
         //- create preview image
         FlatField image = null;
         try {
-          image = (FlatField) dataSource.getData(choice, null, null, null);
+          image = (FlatField) dataSource.getData(choice, null);
         }
         catch (Exception e) {
           System.out.println(e);
@@ -269,8 +266,12 @@ public class MultiSpectralSelection extends SelectionAdapter {
 
     public void applyToDataSelection(DataSelection dataSelection) {
        previewSelects[0].applyToDataSelection(dataSelection);
-       dataSelection.putProperty(PROP_CHAN, wavenumber);
-       dataSelection.putProperty(SpectrumAdapter.channelIndex_name, channelIndex);
+       
+       HashMap subset = ((MultiDimensionSubset)dataSelection).getSubset();
+       
+       double[] coords = new double[] {(double)channelIndex, (double)channelIndex, (double)1};
+       
+       ((MultiDimensionSubset)dataSelection).setCoords(SpectrumAdapter.channelIndex_name, coords);
     }
 
     public DataChoice getSelectedDataChoice() {

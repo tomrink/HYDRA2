@@ -2,12 +2,6 @@ package edu.wisc.ssec.hydra.data;
 
 import edu.wisc.ssec.hydra.GEOSProjection;
 import edu.wisc.ssec.hydra.GEOSTransform;
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
 
 import edu.wisc.ssec.adapter.NetCDFFile;
 import edu.wisc.ssec.adapter.HDFArray;
@@ -18,11 +12,9 @@ import edu.wisc.ssec.adapter.RangeProcessor;
 
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Enumeration;
 import java.rmi.RemoteException;
 
 import ucar.nc2.Variable;
@@ -33,11 +25,10 @@ import visad.Linear2DSet;
 import visad.RealTupleType;
 import visad.RealType;
 import visad.Set;
-import visad.FlatField;
 import visad.VisADException;
 import visad.georef.MapProjection;
 
-public class GEOSDataSource extends DataSourceImpl {
+public class GEOSDataSource extends DataSource {
 
   NetCDFFile reader;
   ArrayList<Variable> projVarList = new ArrayList<Variable>();
@@ -51,16 +42,19 @@ public class GEOSDataSource extends DataSourceImpl {
   
   double default_stride = 10;
   
-  public GEOSDataSource(String filename) {
-     this(filename, 4);
+  String dateTimeStamp;
+  
+  public GEOSDataSource(File file) {
+     this(file, 4);
   }
 
-  public GEOSDataSource(String filename, double default_stride) {
-    super(new DataSourceDescriptor(), "GEOS", "GEOS", new Hashtable());
+  public GEOSDataSource(File file, double default_stride) {
     
     this.default_stride = default_stride;
+    this.dateTimeStamp = DataSource.getDateTimeStampFromFilename(file.getName());
+    
     try {
-      init(filename);
+      init(file.getPath());
     } 
     catch (Exception e) {
       e.printStackTrace();
@@ -200,14 +194,21 @@ public class GEOSDataSource extends DataSourceImpl {
                subset.put(geosInfo.getTDimName(), new double[] {0.0, 0.0, 1.0});
             }
             DataSelection dataSel = new MultiDimensionSubset(subset);
-            Hashtable props = new Hashtable();
-            props.put(MultiDimensionSubset.key, dataSel);
-            DataChoice dataChoice = new DirectDataChoice(this, 0, name, name, null, props);
+            DataChoice dataChoice = new DataChoice(this, name, null);
+            dataChoice.setDataSelection(dataSel);
             addDataChoice(dataChoice);
             adapters.add(goesAdapter);
         }
      }
 
+  }
+  
+  public String getDateTimeStamp() {
+     return dateTimeStamp;
+  }
+  
+  public boolean getDoReproject(DataChoice choice) {
+     return false;
   }
   
   public void addDataChoice(DataChoice dataChoice) {
@@ -218,31 +219,16 @@ public class GEOSDataSource extends DataSourceImpl {
      return myDataChoices; 
   }
   
-   public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
-   }
 
-
-   protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException
-   {
+  public Data getData(DataChoice dataChoice, DataSelection dataSelection)
+      throws VisADException, RemoteException
+  {
       try {
          ArrayList dataChoices = (ArrayList) getDataChoices();
          int idx = dataChoices.indexOf(dataChoice);
          GOESGridAdapter adapter = adapters.get(idx);
 
-         MultiDimensionSubset select = null;
-         Hashtable table = dataChoice.getProperties();
-         Enumeration keys = table.keys();
-         while (keys.hasMoreElements()) {
-             Object key = keys.nextElement();
-             if (key instanceof MultiDimensionSubset) {
-                select = (MultiDimensionSubset) table.get(key);
-             }
-         }
+         MultiDimensionSubset select = (MultiDimensionSubset)dataChoice.getDataSelection();
          HashMap subset = select.getSubset();
 
          return adapter.getData(subset);
@@ -250,7 +236,7 @@ public class GEOSDataSource extends DataSourceImpl {
          e.printStackTrace();
       }
       return null;
-   }
+  }
 
 }
 

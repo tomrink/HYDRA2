@@ -927,14 +927,18 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
    }
    
    public void updateInfoLabel(DisplayableData imageDsp) {
+      String dtStr = null;
       String str = null;
+      
       if (imageDsp instanceof HydraRGBDisplayable) {
-          str = ((HydraRGBDisplayable)imageDsp).getDateTimeStr();
+          str = ((HydraRGBDisplayable)imageDsp).getDescription();
+          dtStr = ((HydraRGBDisplayable)imageDsp).getDateTimeStr();
       }
       else if (imageDsp instanceof ImageRGBDisplayable) {
-          str = ((ImageRGBDisplayable)imageDsp).getDateTimeStr();
+          dtStr = ((ImageRGBDisplayable)imageDsp).getDateTimeStr();
       }
-      infoLabel.setDateTime(str);
+      
+      infoLabel.setDescAndDateTime(str, dtStr);
    }
 
    public EarthLocationTuple[] getMinMaxLocation(FlatField image) throws VisADException, RemoteException {
@@ -1391,7 +1395,17 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
        }
    }
    
-
+   public void setWhichVisible(Depiction depiction) {
+      for (int k=0; k<listOfDepictions.size(); k++) {
+         if (listOfDepictions.get(k) == depiction) {
+            whichVisible = k;
+            break;
+         }
+      }
+      updateDepictionVisibility();
+      updateForVisibilityChange(whichVisible);
+   }
+   
    public static ImageDisplay getTarget() {
       for (int k=0; k<imageDisplayList.size(); k++) {
          ImageDisplay iDsp = imageDisplayList.get(k);

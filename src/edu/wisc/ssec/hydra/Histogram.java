@@ -26,11 +26,8 @@ import visad.CellImpl;
 import visad.MouseHelper;
 import visad.java2d.DisplayImplJ2D;
 import visad.java2d.DirectManipulationRendererJ2D;
-import visad.java3d.DisplayImplJ3D;
-import javax.swing.JPanel;
 import java.awt.Component;
 import java.rmi.RemoteException;
-import java.util.ArrayList;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 

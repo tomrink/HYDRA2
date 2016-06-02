@@ -49,7 +49,7 @@ import java.util.HashMap;
 
 public class DataBrowser extends HydraDisplay implements ActionListener, TreeSelectionListener, TreeExpansionListener {
 
-   public static String version = "3.7.0";
+   public static String version = "3.7.9";
 
    private static DataBrowser instance = null;
 
@@ -357,7 +357,7 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
 
         if (node.isLeaf()) {
            selectedLeafNode = node;
-           selectedNode = null;
+           selectedNode = (DefaultMutableTreeNode)node.getParent();
            hydra = datasetToHydra.get(node.getParent());
            
            TreePath tpath;
@@ -477,7 +477,10 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
           }
        }
        else if (cmd.equals("RemoveDataset")) {
-          if (selectedNode == null || selectedNode == datasetsNode) {
+          if (selectedNode == datasetsNode) {
+             return;
+          }
+          else if (selectedNode == null) {
              return;
           }
           datasetToHydra.remove(selectedNode);
@@ -802,7 +805,7 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
       
       try {
          PrintStream prntStrm = new PrintStream(new FileOutputStream(new File(homeDir, "hydraout.txt"), false));
-         System.setOut(prntStrm);
+         //System.setOut(prntStrm);
          System.setErr(prntStrm);
       }
       catch (Exception e) { // Just in case we can't open the log file.

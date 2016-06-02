@@ -1,38 +1,27 @@
 package edu.wisc.ssec.hydra;
 
 import javax.swing.JFrame;
-import javax.swing.JPanel;
 import javax.swing.JComponent;
-import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JMenuBar;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JLabel;
 import javax.swing.JSplitPane;
 import javax.swing.JTextField;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
-import java.awt.Component;
-import java.awt.BorderLayout;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
-import java.awt.geom.Rectangle2D;
 import java.awt.Dimension;
 import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Point;
-import java.awt.event.WindowListener;
 import java.awt.event.WindowEvent;
 
-import java.util.List;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import edu.wisc.ssec.adapter.MultiSpectralData;
-import edu.wisc.ssec.adapter.SpectrumAdapter;
 import edu.wisc.ssec.adapter.ATMS_SDR_Utility;
 
 import visad.*;
@@ -41,8 +30,7 @@ import visad.georef.MapProjection;
 import java.rmi.RemoteException;
 
 import ucar.unidata.util.ColorTable;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DirectDataChoice;
+import edu.wisc.ssec.hydra.data.DataChoice;
 
 
 import java.beans.PropertyChangeListener;
@@ -86,7 +74,7 @@ public class MultiChannelViewer extends HydraDisplay {
          this.dateTimeStamp = dateTimeStamp;
          this.dataSourceId = dataSourceId;
 
-         multiSpectDsp = new MultiSpectralDisplay((DirectDataChoice) dataChoice, initWaveNumber, xMapRange, yMapRange);
+         multiSpectDsp = new MultiSpectralDisplay((DataChoice) dataChoice, initWaveNumber, xMapRange, yMapRange);
          multiSpectDsp.processor = this;
          initXmapScale = (float) multiSpectDsp.getXmapScale();
          multiSpectDsp.showChannelSelector();
@@ -99,7 +87,7 @@ public class MultiChannelViewer extends HydraDisplay {
 
          ColorTable clrTbl = Hydra.invGrayTable;
 
-         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(image, null, clrTbl, fldName, dateTimeStamp);
+         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(image, null, clrTbl, fldName, dateTimeStamp, sourceDescription);
 
          baseDescription = sourceDescription+" "+dateTimeStamp;
          String str = baseDescription+" "+Float.toString(multiSpectDsp.getWaveNumber())+" cm-1";

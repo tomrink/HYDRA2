@@ -1,10 +1,7 @@
 package edu.wisc.ssec.hydra;
 
-import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.FlowLayout;
-import java.awt.GridLayout;
-import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.rmi.RemoteException;
@@ -17,26 +14,19 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.JComboBox;
-import javax.swing.SwingUtilities;
 import javax.swing.JSplitPane;
 
 import visad.BaseColorControl;
-import visad.FieldImpl;
 import visad.FlatField;
-import visad.FunctionType;
 import visad.ScalarMap;
 import visad.ScalarMapControlEvent;
 import visad.ScalarMapEvent;
 import visad.ScalarMapListener;
 import visad.VisADException;
-import visad.Data;
-import visad.CoordinateSystem;
 import visad.CellImpl;
 
-import visad.georef.MapProjection;
 
 import ucar.unidata.util.ColorTable;
-import ucar.unidata.util.Range;
 import ucar.visad.display.DisplayMaster;
 
 

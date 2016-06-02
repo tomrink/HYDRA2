@@ -1,17 +1,9 @@
 package edu.wisc.ssec.hydra.data;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.List;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import edu.wisc.ssec.adapter.SwathAdapter;
 import edu.wisc.ssec.adapter.NetCDFFile;
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
@@ -20,7 +12,7 @@ import visad.Data;
 import java.rmi.RemoteException;
 
 
-public class GenericDataSource extends DataSourceImpl {
+public class GenericDataSource extends DataSource {
 
    String dateTimeStamp = null;
 
@@ -33,6 +25,8 @@ public class GenericDataSource extends DataSourceImpl {
    HashMap<String, DimensionSet>  arrayNameToDims = new HashMap<String, DimensionSet>();
 
    ArrayList<FieldInfo> swathFields = new ArrayList<FieldInfo>();
+   
+   ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
 
 
    public GenericDataSource(File directory) {
@@ -40,7 +34,6 @@ public class GenericDataSource extends DataSourceImpl {
    }
 
    public GenericDataSource(File[] files) {
-      super(new DataSourceDescriptor(), "GenericDataSource", "GenericDataSource", new Hashtable());
 
       this.files = files;
       int numFiles = files.length;
@@ -56,6 +49,8 @@ public class GenericDataSource extends DataSourceImpl {
       NetCDFFile reader = new NetCDFFile(file.getAbsolutePath());
 
       String name = file.getName();
+      dateTimeStamp = DataSource.getDateTimeStampFromFilename(name);
+      description = DataSource.getDescriptionFromFilename(name);
 
       if (name.startsWith("NPR-MIRS") && name.endsWith(".nc")) {
          DimensionSet dimSet = new DimensionSet("Scanline", "Field_of_view", null, null, "Scanline", "Field_of_view");
@@ -91,10 +86,9 @@ public class GenericDataSource extends DataSourceImpl {
 
          HashMap subset = swathAdapter.getDefaultSubset();
          MultiDimensionSubset dataSel = new MultiDimensionSubset(subset);
-         Hashtable props = new Hashtable();
-         props.put(MultiDimensionSubset.key, dataSel);
-         DirectDataChoice dataChoice = new DirectDataChoice(this, k, fInfo.rangeName, fInfo.rangeName, null, props);
-         addDataChoice(dataChoice);
+         DataChoice dataChoice = new DataChoice(this, fInfo.rangeName, null);
+         dataChoice.setDataSelection(dataSel);
+         myDataChoices.add(dataChoice);
          dataChoiceToAdapter.put(dataChoice, swathAdapter);
       }
       
@@ -161,44 +155,22 @@ public class GenericDataSource extends DataSourceImpl {
       return dataChoiceToAdapter.get(dataChoice);
    }
 
-   public void doMakeDataChoice(String name, int bandIdx, int idx, DataChoice targetDataChoice, List category) {
-     Hashtable subset = targetDataChoice.getProperties();
-     DataChoice dataChoice = new DirectDataChoice(this, idx, name, name, category, subset);
-     dataChoice.setProperties(subset);
-     addDataChoice(dataChoice);
-   }
-
    public String getDescription() {
-     return "AIRS Retrvl";
+     return description;
    }
 
    public String getDateTimeStamp() {
-     return " ";
+      return dateTimeStamp;
    }
 
-    public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
-    }
 
-
-    protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException 
-    {
+   public Data getData(DataChoice dataChoice, DataSelection dataSelection)
+           throws VisADException, RemoteException 
+   {
       try {
          SwathAdapter adapter = dataChoiceToAdapter.get(dataChoice);
 
-         MultiDimensionSubset select = null;
-         Hashtable table = dataChoice.getProperties();
-         Enumeration keys = table.keys();
-         while (keys.hasMoreElements()) {
-             Object key = keys.nextElement();
-             if (key instanceof MultiDimensionSubset) {
-                select = (MultiDimensionSubset) table.get(key);
-             }
-         }
+         MultiDimensionSubset select = (MultiDimensionSubset) dataChoice.getDataSelection();
          HashMap subset = select.getSubset();
 
          return adapter.getData(subset);
@@ -207,7 +179,7 @@ public class GenericDataSource extends DataSourceImpl {
       }
 
       return null;
-    }
+   }
 
 }
 

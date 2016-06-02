@@ -2,8 +2,10 @@ package edu.wisc.ssec.hydra;
 
 import java.awt.Color;
 import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.rmi.RemoteException;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 
 import visad.CoordinateSystem;
 import visad.Data;
@@ -27,32 +29,20 @@ import visad.georef.LatLonPoint;
 import visad.georef.LatLonTuple;
 
 import ucar.unidata.collab.Sharable;
+import ucar.unidata.collab.SharableImpl;
 import ucar.unidata.collab.SharableManager;
-import ucar.unidata.data.grid.GridUtil;
-import ucar.unidata.idv.control.GridDisplayControl;
 import ucar.unidata.view.geoloc.NavigatedDisplay;
 import ucar.visad.ShapeUtility;
 import ucar.visad.display.DisplayMaster;
 import ucar.visad.display.PointProbe;
 import ucar.visad.display.SelectorDisplayable;
 import ucar.visad.display.TextDisplayable;
+import visad.georef.EarthLocation;
 
 
+public class ReadoutProbe extends SharableImpl implements PropertyChangeListener {
 
-/**
- * An abstract base class that manages a vertical probe
- * To create a probe call doMakeProbe
- * To be notified of changes override:
- * void probePositionChanged (double x, double y);
- *
- * @author IDV development team
- * @version $Revision: 1.10 $Date: 2011/03/24 16:06:32 $
- */
-public class ReadoutProbe extends GridDisplayControl {
-
-    /** profile sharing property */
-    public static final String SHARE_PROFILE =
-        "LineProbeControl.SHARE_PROFILE";
+    public static final String SHARE_POSITION = "SHARE_POSITION";
 
     /** the Point probe */
     protected PointProbe probe;
@@ -106,7 +96,9 @@ public class ReadoutProbe extends GridDisplayControl {
     private double baseScale = 1.0;
 
     private InfoLabel infoLabel;
-
+    
+    // For probes sharing location
+    private static ArrayList<ReadoutProbe> readoutProbeList = new ArrayList<ReadoutProbe>();
 
     /**
      * Default Constructor.
@@ -126,7 +118,7 @@ public class ReadoutProbe extends GridDisplayControl {
         if (earthTupleType != null) {
           isLonLat = earthTupleType.equals(RealTupleType.SpatialEarth2DTuple);
         }
-        setAttributeFlags(FLAG_COLOR);
+        
         initSharable();
 
         currentPosition = new RealTuple(RealTupleType.Generic2D);
@@ -135,25 +127,8 @@ public class ReadoutProbe extends GridDisplayControl {
 
         if (share) {
            setSharing(true);
+           readoutProbeList.add(this);
         }
-
-        /**
-        master.getDisplay().addDisplayListener( new DisplayListener() {
-            public void displayChanged(DisplayEvent de) {
-              if ((de.getId() == DisplayEvent.MOUSE_RELEASED)) {
-                try {
-                  RealTuple position = getPosition();
-                  double[] vals = position.getValues();
-                  EarthLocationTuple elt =
-                      (EarthLocationTuple)boxToEarth(new double[] { vals[0], vals[1], 1.0 });
-                  doShare(SHARE_POSITION, elt.getLatLonPoint());
-                } catch (Exception e) {
-                    logException("doMoveProfile", e);
-                }
-              }
-            }
-        });
-        */
 
         numFmt = getValueDisplayFormat(dataRange);
         latlonFmt = new DecimalFormat();
@@ -224,6 +199,10 @@ public class ReadoutProbe extends GridDisplayControl {
             throws VisADException, RemoteException {
 
         initTextSize = textSize;
+        
+        if (readoutProbeList.size() > 0 && getSharing()) {
+           initPosition = readoutProbeList.get(0).getPosition();
+        }
 
         if (initPosition != null) {
             probe = new PointProbe(initPosition);
@@ -262,6 +241,7 @@ public class ReadoutProbe extends GridDisplayControl {
     public void destroy() {
        image = null;
        SharableManager.removeSharable(this);
+       readoutProbeList.remove(this);
        try {
           probe.removePropertyChangeListener(this);
        }
@@ -280,7 +260,7 @@ public class ReadoutProbe extends GridDisplayControl {
                 SelectorDisplayable.PROPERTY_POSITION)) {
             doMoveProbe();
         } else {
-            super.propertyChange(evt);
+//            super.propertyChange(evt);
         }
     }
 
@@ -291,7 +271,6 @@ public class ReadoutProbe extends GridDisplayControl {
         try {
             setProbePosition(0.0, 0.0);
         } catch (Exception exc) {
-            logException("Resetting probe position", exc);
         }
     }
 
@@ -411,7 +390,6 @@ public class ReadoutProbe extends GridDisplayControl {
                   probe.setPosition((RealTuple) data[0]);
                 }
             } catch (Exception e) {
-                logException("receiveShareData:" + dataId, e);
             }
             return;
         }
@@ -434,7 +412,6 @@ public class ReadoutProbe extends GridDisplayControl {
             doShare(SHARE_POSITION, elt.getLatLonPoint());
             //test doShare(SHARE_POSITION, getNearestImagePixel(image, elt.getLatLonPoint()));
         } catch (Exception e) {
-            logException("doMoveProfile", e);
         }
     }
 
@@ -660,7 +637,6 @@ public class ReadoutProbe extends GridDisplayControl {
             updatePosition(getPosition());
             probePositionChanged(getPosition());
         } catch (Exception exc) {
-            logException("projectionChanged", exc);
         }
     }
 
@@ -705,7 +681,6 @@ public class ReadoutProbe extends GridDisplayControl {
                 probe.setPointSize(pointSize);
                 probe.setAutoSize(true);
             } catch (Exception exc) {
-                logException("Increasing probe size", exc);
             }
         }
     }
@@ -717,33 +692,6 @@ public class ReadoutProbe extends GridDisplayControl {
      */
     public float getPointSize() {
         return pointSize;
-    }
-
-
-    /**
-     * Get initial XY position from grid data.
-     *
-     * @return initial XY position of grid center point in VisAD space
-     *
-     * @throws RemoteException Java RMI problem
-     * @throws VisADException VisAD problem
-     */
-    public RealTuple getGridCenterPosition()
-            throws VisADException, RemoteException {
-        RealTuple pos = new RealTuple(RealTupleType.SpatialCartesian2DTuple,
-                                      new double[] { 0,
-                0 });
-        if (getGridDataInstance() != null) {
-            LatLonPoint rt = GridUtil.getCenterLatLonPoint(
-                                 getGridDataInstance().getGrid());
-            RealTuple xyz = earthToBoxTuple(new EarthLocationTuple(rt,
-                                new Real(RealType.Altitude, 0)));
-            if (xyz != null) {
-                pos = new RealTuple(new Real[] { (Real) xyz.getComponent(0),
-                        (Real) xyz.getComponent(1) });
-            }
-        }
-        return pos;
     }
 
 
@@ -778,27 +726,6 @@ public class ReadoutProbe extends GridDisplayControl {
         initPosition = new RealTuple(RealTupleType.SpatialCartesian2DTuple,
                              new double[] { pos[0], pos[1] });
         return initPosition;
-    }
-
-
-    /**
-     * Set the Marker property.
-     *
-     * @param value The new value for Marker
-     */
-    public void setMarker(String value) {
-        marker = value;
-        if ((probe != null) && (marker != null)) {
-            try {
-                //probe.setAutoSize(false);
-		/*
-                probe.setMarker(
-                    SelectorPoint.reduce(ShapeUtility.makeShape(marker))); */
-                //probe.setAutoSize(true);
-            } catch (Exception exc) {
-                logException("Setting marker", exc);
-            }
-        }
     }
 
     /**
@@ -837,5 +764,17 @@ public class ReadoutProbe extends GridDisplayControl {
           e.printStackTrace();
           System.out.println("could not change probe visibility");
        }
+    }
+    
+    double[] earthToBox(EarthLocationTuple el) throws VisADException, RemoteException {
+       return ((NavigatedDisplay)master).getSpatialCoordinates(el, null);
+    }
+    
+    RealTuple earthToBoxTuple(EarthLocationTuple el) throws VisADException, RemoteException {
+       return ((NavigatedDisplay)master).getSpatialCoordinates(el);
+    }
+    
+    EarthLocation boxToEarth(double[] box) {
+       return ((NavigatedDisplay)master).getEarthLocation(box[0], box[1], box[2], true);
     }
 }

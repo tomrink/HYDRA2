@@ -1,34 +1,21 @@
 package edu.wisc.ssec.hydra;
 
-import visad.AxisScale;
 import visad.CellImpl;
 import visad.ConstantMap;
 import visad.DataReference;
 import visad.DataReferenceImpl;
 import visad.DataRenderer;
 import visad.Display;
-import visad.DisplayEvent;
-import visad.DisplayListener;
-import visad.FlatField;
-import visad.FunctionType;
 import visad.Gridded1DSet;
 import visad.Gridded2DSet;
 import visad.LocalDisplay;
 import visad.Real;
-import visad.RealTuple;
 import visad.RealTupleType;
 import visad.RealType;
 import visad.ScalarMap;
-import visad.ScalarMapListener;
-import visad.ScalarMapControlEvent;
-import visad.ScalarMapEvent;
 import visad.VisADException;
-import visad.bom.RubberBandBoxRendererJ3D;
 import visad.java3d.DefaultRendererJ3D;
 
-import ucar.unidata.data.DirectDataChoice;
-import ucar.visad.display.DisplayableData;
-import ucar.visad.display.XYDisplay;
 
 import edu.wisc.ssec.adapter.GrabLineRendererJ3D;
 
@@ -37,7 +24,6 @@ import java.beans.PropertyChangeListener;
 
 import java.rmi.RemoteException;
 
-import java.awt.Color;
 
 import java.util.ArrayList;
 

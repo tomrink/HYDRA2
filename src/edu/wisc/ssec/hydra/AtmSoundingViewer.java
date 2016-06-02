@@ -1,39 +1,26 @@
 package edu.wisc.ssec.hydra;
 
 import javax.swing.JFrame;
-import javax.swing.JPanel;
 import javax.swing.JComponent;
-import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JMenuBar;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JLabel;
 import javax.swing.JSplitPane;
-import javax.swing.JTextField;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
-import java.awt.Component;
-import java.awt.BorderLayout;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.geom.Rectangle2D;
 import java.awt.Dimension;
 import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Point;
-import java.awt.event.WindowListener;
 import java.awt.event.WindowEvent;
 
 import java.util.List;
-import java.util.ArrayList;
-import java.util.HashMap;
 
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.SwathSoundingData;
-import edu.wisc.ssec.adapter.SpectrumAdapter;
 
 import visad.*;
 import visad.georef.LatLonTuple;
@@ -41,8 +28,7 @@ import visad.georef.MapProjection;
 import java.rmi.RemoteException;
 
 import ucar.unidata.util.ColorTable;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DirectDataChoice;
+import edu.wisc.ssec.hydra.data.DataChoice;
 
 
 import java.beans.PropertyChangeListener;
@@ -80,7 +66,7 @@ public class AtmSoundingViewer extends HydraDisplay {
          this.dateTimeStamp = dateTimeStamp;
          this.dataSourceId = dataSourceId;
 
-         atmSoundingDsp = new AtmSoundingDisplay((DirectDataChoice) dataChoice);
+         atmSoundingDsp = new AtmSoundingDisplay((DataChoice) dataChoice);
          atmSoundingDsp.showChannelSelector();
          final AtmSoundingDisplay msd = atmSoundingDsp;
 
@@ -91,10 +77,8 @@ public class AtmSoundingViewer extends HydraDisplay {
 
          ColorTable clrTbl = Hydra.invGrayTable;
 
-         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(image, null, clrTbl, fldName, dateTimeStamp);
+         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(image, null, clrTbl, fldName, dateTimeStamp, sourceDescription);
 
-         //baseDescription = sourceDescription+" "+dateTimeStamp;
-         //String str = baseDescription+" "+Float.toString(multiSpectDsp.getWaveNumber())+" cm-1";
          String str = null;
          if (windowNumber > 0) {
             imgDisplay = new ImageDisplay(imageDsp, mapProj, windowNumber, false);
@@ -199,7 +183,6 @@ public class AtmSoundingViewer extends HydraDisplay {
              }
        });
        fourChannelCombine.setActionCommand("doFourChannelCombine");
-       //tools.add(fourChannelCombine);
 
        JMenu paramMenu = new JMenu("Parameter");
        paramMenu.getPopupMenu().setLightWeightPopupEnabled(false);
@@ -293,77 +276,6 @@ public class AtmSoundingViewer extends HydraDisplay {
        return menuBar;
     }
 
-    /*
-    public void doChannelCombine() {
-       final String idA = "A";
-       final String idB = "B";
-       final String idC = "C";
-       final String idD = "D";
-       final MyOperand operandA = new MyOperand(multiSpectDsp, idA);
-       final MyOperand operandB = new MyOperand(multiSpectDsp, idB);
-       final MyOperand operandC = new MyOperand(multiSpectDsp, idC);
-       final MyOperand operandD = new MyOperand(multiSpectDsp, idD);
-
-       final FourOperandCombine widget = new FourOperandCombine(new Operand[] {operandA, operandB, operandC, operandD});
-       JComponent gui = widget.buildGUI();
-
-       try {
-           float val = multiSpectDsp.getWaveNumber();
-           float valA = val+40f;
-           multiSpectDsp.createSelector(idA, Color.red, valA);
-           widget.updateOperandComp(0, Float.toString(valA)); 
-           multiSpectDsp.addSelectorListener(idA, new SelectorListener(widget, operandA, 0));
-
-           float valB = val-40f;
-           multiSpectDsp.createSelector(idB, Color.magenta, valB);
-           widget.updateOperandComp(1, Float.toString(valB));
-           multiSpectDsp.addSelectorListener(idB, new SelectorListener(widget, operandB, 1));
-
-           float valC = val+80f;
-           multiSpectDsp.createSelector(idC, Color.orange, valC);
-           multiSpectDsp.addSelectorListener(idC, new SelectorListener(widget, operandC, 2));
-           multiSpectDsp.setSelectorVisible(idC, false);
-
-           float valD = val-80f;
-           multiSpectDsp.createSelector(idD, Color.blue, valD);
-           multiSpectDsp.addSelectorListener(idD, new SelectorListener(widget, operandD, 3));
-           multiSpectDsp.setSelectorVisible(idD, false);
-       }
-       catch (Exception exc) {
-          exc.printStackTrace();
-       }
-
-       JButton button = new JButton("Display");
-       button.addActionListener(new ActionListener() {
-         public void actionPerformed(ActionEvent e) {
-             try {
-                 Data data = widget.compute();
-                 widget.createDisplay(data);
-             }
-             catch (Exception exc) {
-                 exc.printStackTrace();
-             }
-         }
-      });
-      gui.add(button);
-
-       JFrame frame = Hydra.createAndShowFrame("FourChannelCombine", gui);
-       frame.addWindowListener(new WindowAdapter() {
-            public void windowClosing(WindowEvent e) {
-               multiSpectDsp.removeSelector(idA);
-               multiSpectDsp.removeSelector(idB);
-               multiSpectDsp.removeSelector(idC);
-               multiSpectDsp.removeSelector(idD);
-            }
-          }
-       );
-
-       Point pt = getFrame().getLocation();
-       frame.setLocation(pt.x,pt.y-60);
-    }
-    */
-
-
     public JComponent doMakeMultiBandSelectComponent() {
          final float[] levels = swathSoundingData.getSoundingLevels();
          String[] levelNames = new String[levels.length];
@@ -425,8 +337,6 @@ public class AtmSoundingViewer extends HydraDisplay {
     }
 
 
-//}
-
 public static class ProbeLocationChange extends CellImpl {
     DataReference probeLocationRef;
     DataReference spectrumRef;
@@ -455,62 +365,3 @@ public static class ProbeLocationChange extends CellImpl {
 }
 
 }
-
-
-/*
-class MyOperand extends Operand {
-    float waveNumber;
-    MultiSpectralDisplay multiSpectDsp;
-    String id;
-
-    MyOperand(MultiSpectralDisplay multiSpectDsp, String id) {
-       this.multiSpectDsp = multiSpectDsp;
-       this.id = id;
-    }
-
-    public Data getData() throws VisADException, RemoteException {
-       waveNumber = multiSpectDsp.getSelectorValue(id);
-       return multiSpectDsp.getImageDataFrom(waveNumber);
-    }
-
-    public void disable() {
-       isEmpty = true;
-       multiSpectDsp.setSelectorVisible(id, false);
-    }
-
-    public void enable() {
-       isEmpty = false;
-       try {
-          waveNumber = multiSpectDsp.getSelectorValue(id);
-          multiSpectDsp.setSelectorValue(id, waveNumber);
-       }
-       catch (Exception e) {
-          e.printStackTrace();
-       }
-       multiSpectDsp.setSelectorVisible(id, true);
-    }
-
-    public String getName() {
-       return Float.toString(waveNumber);
-    }
-}
-
-class SelectorListener implements PropertyChangeListener {
-    FourOperandCombine widget;
-    MyOperand operand;
-    int index;
-
-    public SelectorListener(FourOperandCombine widget, MyOperand operand, int index) {
-       this.widget = widget;
-       this.operand = operand;
-       this.index = index;
-    }
-
-    public void propertyChange(PropertyChangeEvent event) {
-       Float flt = (Float) event.getNewValue();
-       String str = flt.toString();
-       widget.updateOperandComp(index, str);
-       operand.waveNumber = flt.floatValue();
-    }
-}
-*/

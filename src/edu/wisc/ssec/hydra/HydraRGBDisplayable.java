@@ -124,6 +124,8 @@ public class HydraRGBDisplayable extends DisplayableData {
     public DataRenderer theRenderer;
     
     private String dateTimeStr = " ";
+    
+    private String description = " ";
 
     /**
      * Constructs from a name for the Displayable and the type of the
@@ -205,7 +207,15 @@ public class HydraRGBDisplayable extends DisplayableData {
     public String getDateTimeStr() {
         return dateTimeStr;
     }
+    
+    public void setDescription(String desc) {
+       this.description = desc;
+    }
 
+    public String getDescription() {
+       return this.description;
+    }
+    
     /**
      * Does this object use the displayUnit (or the colorUnit) for its
      * display unit. The default is true.  This allows derived classes

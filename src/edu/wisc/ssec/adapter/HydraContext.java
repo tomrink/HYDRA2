@@ -1,37 +1,9 @@
-/*
- * This file is part of McIDAS-V
- *
- * Copyright 2007-2013
- * Space Science and Engineering Center (SSEC)
- * University of Wisconsin - Madison
- * 1225 W. Dayton Street, Madison, WI 53706, USA
- * http://www.ssec.wisc.edu/mcidas
- * 
- * All Rights Reserved
- * 
- * McIDAS-V is built on Unidata's IDV and SSEC's VisAD libraries, and
- * some McIDAS-V source code is based on IDV and VisAD source code.  
- * 
- * McIDAS-V is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- * 
- * McIDAS-V is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
- */
-
 package edu.wisc.ssec.adapter;
 
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataSource;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataCategory;
+import edu.wisc.ssec.hydra.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataGroup;
+import edu.wisc.ssec.hydra.data.DataSource;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
@@ -40,9 +12,9 @@ public class HydraContext {
 
   private static HashMap<DataSource, HydraContext> dataSourceToContextMap = new HashMap<DataSource, HydraContext>(); 
   private static HashMap<DataChoice, HydraContext> dataChoiceToContextMap = new HashMap<DataChoice, HydraContext>(); 
-  private static HashMap<DataCategory, HydraContext> dataCategoryToContextMap = new HashMap<DataCategory, HydraContext>(); 
+  private static HashMap<DataGroup, HydraContext> dataCategoryToContextMap = new HashMap<DataGroup, HydraContext>(); 
 
-  private static HashMap<DataSource, HashMap<DataCategory, HydraContext>> contextMap = new HashMap<DataSource, HashMap<DataCategory, HydraContext>>();
+  private static HashMap<DataSource, HashMap<DataGroup, HydraContext>> contextMap = new HashMap<DataSource, HashMap<DataGroup, HydraContext>>();
 
   private static HydraContext hydraContext = null;
   private boolean useSubset = false;
@@ -53,7 +25,7 @@ public class HydraContext {
 
   private static HydraContext last = null;
 
-  public static HydraContext getHydraContext(DataSource source, DataCategory dataCategory) {
+  public static HydraContext getHydraContext(DataSource source, DataGroup dataCategory) {
     if (dataCategory == null) {
       return getHydraContext(source);
     }
@@ -79,7 +51,7 @@ public class HydraContext {
     }
   }
 
-  public static HashMap<DataCategory, HydraContext> getHydraContexts(DataSource source) {
+  public static HashMap<DataGroup, HydraContext> getHydraContexts(DataSource source) {
     return contextMap.get(source);
   }
 
@@ -117,7 +89,7 @@ public class HydraContext {
     }
   }
 
-  public static HydraContext getHydraContext(DataCategory choice) {
+  public static HydraContext getHydraContext(DataGroup choice) {
     if (dataCategoryToContextMap.isEmpty()) {
       HydraContext hydraContext = new HydraContext();
       dataCategoryToContextMap.put(choice, hydraContext);

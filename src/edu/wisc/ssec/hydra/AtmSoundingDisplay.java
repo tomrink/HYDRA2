@@ -5,9 +5,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -39,7 +37,7 @@ import visad.VisADException;
 import visad.bom.RubberBandBoxRendererJ3D;
 import visad.java3d.DefaultRendererJ3D;
 
-import ucar.unidata.data.DirectDataChoice;
+import edu.wisc.ssec.hydra.data.DataChoice;
 import ucar.visad.display.DisplayableData;
 import ucar.visad.display.XYDisplay;
 
@@ -49,10 +47,10 @@ import edu.wisc.ssec.adapter.SwathSoundingData;
 
 public class AtmSoundingDisplay implements DisplayListener {
 
-    private static final String DISP_NAME = "Spectrum";
+    private static final String DISP_NAME = "Retrieval";
     private static int cnt = 1;
 
-    private DirectDataChoice dataChoice;
+    private DataChoice dataChoice;
 
     private float[] initialRangeX;
     private float[] initialRangeY = { 180f, 320f };
@@ -97,7 +95,7 @@ public class AtmSoundingDisplay implements DisplayListener {
     private HashMap subset;
 
 
-    public AtmSoundingDisplay(final DirectDataChoice dataChoice) 
+    public AtmSoundingDisplay(final DataChoice dataChoice) 
         throws VisADException, RemoteException 
     {
         this.dataChoice = dataChoice;
@@ -109,15 +107,7 @@ public class AtmSoundingDisplay implements DisplayListener {
     public FlatField getImageData() {
         try {
            //  check if subset has changed in the DataChoice
-              MultiDimensionSubset select = null;
-              Hashtable table = dataChoice.getProperties();
-              Enumeration keys = table.keys();
-              while (keys.hasMoreElements()) {
-                Object key = keys.nextElement();
-                if (key instanceof MultiDimensionSubset) {
-                  select = (MultiDimensionSubset) table.get(key);
-                }
-              }
+              MultiDimensionSubset select = (MultiDimensionSubset) dataChoice.getDataSelection();
               HashMap subset = select.getSubset();
               image = data.getImage(waveNumber, subset);
         } catch (Exception e) {
@@ -164,15 +154,7 @@ public class AtmSoundingDisplay implements DisplayListener {
 
     private void init() throws VisADException, RemoteException {
 
-        MultiDimensionSubset select = null;
-        Hashtable table = dataChoice.getProperties();
-        Enumeration keys = table.keys();
-        while (keys.hasMoreElements()) {
-           Object key = keys.nextElement();
-           if (key instanceof MultiDimensionSubset) {
-              select = (MultiDimensionSubset) table.get(key);
-           }
-        }
+        MultiDimensionSubset select = (MultiDimensionSubset) dataChoice.getDataSelection();
         subset = select.getSubset();
     	
         /* get SwathSoundingData from ctr?
@@ -221,29 +203,6 @@ public class AtmSoundingDisplay implements DisplayListener {
 
         spectrumRef = new DataReferenceImpl("spectrumRef_"+Hydra.getUniqueID());
         addRef(spectrumRef, Color.WHITE);
-
-        /*
-        if (data.hasBandNames()) {
-            bandSelectComboBox = new JComboBox(data.getBandNames().toArray());
-            bandSelectComboBox.setSelectedItem(data.init_bandName);
-            bandSelectComboBox.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    String bandName = (String)bandSelectComboBox.getSelectedItem();
-                    if (bandName == null)
-                        return;
-
-                    HashMap<String, Float> bandMap = data.getBandNameMap();
-                    if (bandMap == null)
-                        return;
-
-                    if (!bandMap.containsKey(bandName))
-                        return;
-
-                    setWaveNumber(bandMap.get(bandName));
-                }
-            });
-        }
-        */
     }
 
     public JComboBox getBandSelectComboBox() {
@@ -255,13 +214,6 @@ public class AtmSoundingDisplay implements DisplayListener {
         // deal with a super long if-statement and put an "OR MOUSE_RELEASED" 
         // up here?
         if (e.getId() == DisplayEvent.MOUSE_RELEASED_CENTER) {
-           /*
-            //float val = (float)display.getDisplayRenderer().getDirectAxisValue(domainType);
-            //setWaveNumber(val);
-            float val = getSelectorValue(channelSelector);
-            waveNumber = val;
-            notifyListener(val);
-            */
         }
         else if (e.getId() == DisplayEvent.MOUSE_PRESSED_LEFT) {
             if (e.getInputEvent().isControlDown()) {
@@ -317,17 +269,6 @@ public class AtmSoundingDisplay implements DisplayListener {
     {
         ConstantMap[] colorMap = makeColorMap(color);
         ConstantMap[] constMaps = colorMap;
-        /*
-        if (data.hasBandNames()) {
-            constMaps = new ConstantMap[colorMap.length+2];
-            System.arraycopy(colorMap, 0, constMaps, 0, colorMap.length);
-            constMaps[colorMap.length] = new ConstantMap(1f, Display.PointMode);
-            constMaps[colorMap.length+1] = new ConstantMap(5f, Display.PointSize);
-        } else {
-            constMaps = colorMap;
-        }
-        */
-        
         ConstantMap[] newConstMaps = new ConstantMap[constMaps.length+1];
         System.arraycopy(constMaps, 0, newConstMaps, 0, constMaps.length);
         newConstMaps[newConstMaps.length-1] = new ConstantMap(2f, Display.LineWidth);
@@ -484,16 +425,6 @@ public class AtmSoundingDisplay implements DisplayListener {
             displayedThings.add(thing);
             idToRef.put(thing.getName(), thing);
             ConstantMap[] constMaps;
-            /*
-            if (data.hasBandNames()) {
-                constMaps = new ConstantMap[colorMap.length+2];
-                System.arraycopy(colorMap, 0, constMaps, 0, colorMap.length);
-                constMaps[colorMap.length] = new ConstantMap(1f, Display.PointMode);
-                constMaps[colorMap.length+1] = new ConstantMap(5f, Display.PointSize);
-            } else {
-                constMaps = colorMap;
-            }
-            */
             constMaps = colorMap;
             colorMaps.put(thing, constMaps);
             
@@ -507,61 +438,6 @@ public class AtmSoundingDisplay implements DisplayListener {
             display.addReference(thing, newConstMaps);
         }
     }
-
-    /*
-    public boolean displayingChannel() {
-        return (getSelector(channelSelector) != null);
-    }
-
-    public void removeRef(final DataReference thing) throws VisADException,
-        RemoteException
-    {
-        if (display == null)
-            return;
-
-        synchronized (displayedThings) {
-            displayedThings.remove(thing);
-            colorMaps.remove(thing);
-            idToRef.remove(thing.getName());
-            display.removeReference(thing);
-        }
-    }
-
-    public void updateRef(final DataReference thing, final Color color)
-        throws VisADException, RemoteException 
-    {
-        ConstantMap[] colorMap = makeColorMap(color);
-        ConstantMap[] constMaps;
-        if (data.hasBandNames()) {
-            constMaps = new ConstantMap[colorMap.length+2];
-            System.arraycopy(colorMap, 0, constMaps, 0, colorMap.length);
-            constMaps[colorMap.length] = new ConstantMap(1f, Display.PointMode);
-            constMaps[colorMap.length+1] = new ConstantMap(5f, Display.PointSize);
-        } else {
-            constMaps = colorMap;
-        }
-        colorMaps.put(thing, constMaps);
-        idToRef.put(thing.getName(), thing);
-        refreshDisplay();
-    }
-
-    public void reorderDataRefsById(final List<String> dataRefIds) {
-        if (dataRefIds == null)
-            throw new NullPointerException("");
-
-        synchronized (displayedThings) {
-            try {
-                displayedThings.clear();
-                for (String refId : dataRefIds) {
-                    DataReference ref = idToRef.get(refId);
-                    ConstantMap[] color = colorMaps.get(ref);
-                    display.removeReference(ref);
-                    display.addReference(ref, color);
-                }
-            } catch (Exception e) { }
-        }
-    }
-    */
 
     public boolean setWaveNumber(float val) {
        if (waveNumber == val) {

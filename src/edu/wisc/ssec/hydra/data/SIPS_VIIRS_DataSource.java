@@ -3,14 +3,9 @@ package edu.wisc.ssec.hydra.data;
 import edu.wisc.ssec.adapter.AggregationRangeProcessor;
 import edu.wisc.ssec.adapter.ArrayAdapter;
 import edu.wisc.ssec.adapter.GranuleAggregation;
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.ArrayList;
 import edu.wisc.ssec.adapter.SwathAdapter;
@@ -22,14 +17,12 @@ import visad.VisADException;
 import visad.Data;
 import visad.FlatField;
 import java.rmi.RemoteException;
-import java.util.Enumeration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import ucar.unidata.data.DirectDataChoice;
 import visad.util.Util;
 
 
-public abstract class SIPS_VIIRS_DataSource extends DataSourceImpl {
+public abstract class SIPS_VIIRS_DataSource extends DataSource {
 
    String dateTimeStamp = null;
 
@@ -59,7 +52,6 @@ public abstract class SIPS_VIIRS_DataSource extends DataSourceImpl {
    }
 
    public SIPS_VIIRS_DataSource(File[] files) {
-      super(new DataSourceDescriptor(), "VIIRS", "VIIRS", new Hashtable());
 
       try { 
          initReader(files);
@@ -74,7 +66,7 @@ public abstract class SIPS_VIIRS_DataSource extends DataSourceImpl {
    }
 
    void initReader(File[] files) throws Exception {
-      ArrayList<File> sortedList = DataSource.getTimeSortedFileList(files, null);
+      ArrayList<File> sortedList = DataSource.getTimeSortedFileList(files);
       Object[] sortedFiles = sortedList.toArray();
       files = new File[files.length];
       for (int k=0; k<sortedFiles.length; k++) {
@@ -140,7 +132,7 @@ public abstract class SIPS_VIIRS_DataSource extends DataSourceImpl {
       geoReader = new GranuleAggregation(ncdfalGeo, "number_of_lines");
       
       
-      dateTimeStamp = DataSource.getDateTimeStampFromFilename(files[0].getName(), null);
+      dateTimeStamp = DataSource.getDateTimeStampFromFilename(files[0].getName());
    }
    
    public List getDataChoices() {
@@ -305,37 +297,19 @@ public abstract class SIPS_VIIRS_DataSource extends DataSourceImpl {
     void setDataChoice(SwathAdapter adapter, int idx, String name) {
        HashMap subset = adapter.getDefaultSubset();
        DataSelection dataSel = new MultiDimensionSubset(subset);
-       Hashtable props = new Hashtable();
-       props.put(MultiDimensionSubset.key, dataSel);
-       DataChoice dataChoice = new DirectDataChoice(this, idx, name, name, null, props);
-       dataChoice.setProperties(props);
+       DataChoice dataChoice = new DataChoice(this, name, null);
+       dataChoice.setDataSelection(dataSel);
        myDataChoices.add(dataChoice);
        swathAdapters.add(adapter);       
     }  
 
-    public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
-    }
-
-
-    protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
+    public Data getData(DataChoice dataChoice, DataSelection dataSelection)
                                 throws VisADException, RemoteException 
     {
       try {
          SwathAdapter adapter = getSwathAdapter(dataChoice);
          
-         MultiDimensionSubset select = null;
-         Hashtable table = dataChoice.getProperties();
-         Enumeration keys = table.keys();
-         while (keys.hasMoreElements()) {
-             Object key = keys.nextElement();
-             if (key instanceof MultiDimensionSubset) {
-                select = (MultiDimensionSubset) table.get(key);
-             }
-         }
+         MultiDimensionSubset select = (MultiDimensionSubset) dataChoice.getDataSelection();
          HashMap subset = select.getSubset();
          
          Data data = adapter.getData(subset);
@@ -375,7 +349,7 @@ public abstract class SIPS_VIIRS_DataSource extends DataSourceImpl {
       return null;
     }
     
-    public abstract float getNadirResolution();
+    public abstract float getNadirResolution(DataChoice choice);
     
 }
 

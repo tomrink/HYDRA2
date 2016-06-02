@@ -2,14 +2,8 @@ package edu.wisc.ssec.hydra;
 
 import visad.georef.MapProjection;
 import visad.RealTupleType;
-import visad.CoordinateSystem;
-import visad.Data;
-import visad.SI;
-import visad.Unit;
-import visad.Set;
 import java.awt.geom.Rectangle2D;
 import visad.VisADException;
-import java.rmi.RemoteException;
 
 
 public class GEOSProjection extends MapProjection {

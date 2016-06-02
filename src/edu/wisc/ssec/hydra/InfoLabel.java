@@ -12,6 +12,7 @@ public class InfoLabel {
     float lon;
     float value;
     String dateTime;
+    String description;
     
     JLabel label = new JLabel();
     
@@ -70,6 +71,17 @@ public class InfoLabel {
         makeLabel();
     }
     
+    public void setDescription(String desc) {
+       this.description = desc;
+       makeLabel();
+    }
+    
+    public void setDescAndDateTime(String desc, String dateTime) {
+       this.description = desc;
+       this.dateTime = dateTime;
+       makeLabel();
+    }
+    
     public JLabel getJLabel() {
         return label;
     }
@@ -80,7 +92,12 @@ public class InfoLabel {
         for (int k=0; k<values.length; k++) {
           txt = txt+numFmt.format(values[k])+", ";
         }
-        txt = txt+" "+dateTime;
+        if (description != null) {
+           txt = txt+" "+description;
+        }
+        if (dateTime != null) {
+           txt = txt+" "+dateTime;
+        }
         label.setText(txt);
     }
 }

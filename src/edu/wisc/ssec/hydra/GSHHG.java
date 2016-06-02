@@ -1,14 +1,8 @@
 package edu.wisc.ssec.hydra;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.net.URL;
 
-import visad.UnionSet;
-import visad.Gridded2DSet;
-import visad.RealTupleType;
-import visad.VisADException;
-import java.rmi.RemoteException;
 
 public class GSHHG extends SimpleBoundaryAdapter {
 

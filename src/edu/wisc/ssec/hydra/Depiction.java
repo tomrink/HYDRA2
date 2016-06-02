@@ -1,7 +1,6 @@
 package edu.wisc.ssec.hydra;
 
 import javax.swing.JPanel;
-import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.ImageIcon;
 import javax.swing.SwingUtilities;
@@ -111,6 +110,9 @@ public class Depiction {
                   dialog.setLocation(show.getLocationOnScreen());
                   dialog.setVisible(true);
                   dialog.setSize(dialog.getPreferredSize());
+                  if (!isVisible) {
+                     setWhichVisible();
+                  }
                }
              }
           );
@@ -211,6 +213,10 @@ public class Depiction {
       catch (Exception e) {
           e.printStackTrace();
       }
+   }
+   
+   public void setWhichVisible() {
+      imageDisplay.setWhichVisible(this);
    }
 
    public boolean getVisible() {

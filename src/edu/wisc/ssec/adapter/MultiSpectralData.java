@@ -193,7 +193,7 @@ public class MultiSpectralData extends MultiDimensionAdapter {
       new_image = new FlatField(new_type, image.getDomainSet());
       float[][] values = image.getFloats(false);
       float[] bt_values = values[0];
-      if (inputParamName == "Radiance") {
+      if (inputParamName.equals("Radiance")) {
         bt_values = radianceToBrightnessTemp(values[0], channel, platformName, sensorName);
       }
       new_image.setSamples(new float[][] {bt_values}, false);
@@ -201,7 +201,7 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     else if (param.equals("Reflectance")) {
       FunctionType new_type = new FunctionType(f_type.getDomain(), RealType.getRealType("Reflectance"));
       new_image = new FlatField(new_type, image.getDomainSet());
-      if (sensorName == "MODIS") {
+      if (sensorName.equals("MODIS")) {
           CoordinateSystem cs = f_type.getDomain().getCoordinateSystem();
           Linear2DSet dset = (Linear2DSet) image.getDomainSet();
           float[][] samples = dset.getSamples();
@@ -223,7 +223,7 @@ public class MultiSpectralData extends MultiDimensionAdapter {
 
 
   FlatField convertSpectrum(FlatField spectrum, String param) throws Exception {
-    FlatField new_spectrum = null;
+    FlatField new_spectrum;
     FunctionType f_type = (FunctionType) spectrum.getType();
 
     if (param.equals("BrightnessTemp")) {
@@ -231,7 +231,7 @@ public class MultiSpectralData extends MultiDimensionAdapter {
       float[][] channels = ((SampledSet)spectrum.getDomainSet()).getSamples(false);
       float[][] values = spectrum.getFloats(false);
       float[] bt_values = values[0];
-      if (inputParamName == "Radiance") {
+      if (inputParamName.equals("Radiance")) {
         bt_values = radianceToBrightnessTempSpectrum(values[0], channels[0], platformName, sensorName);
       }
       new_spectrum = new FlatField(new_type, spectrum.getDomainSet());
@@ -248,7 +248,7 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     return new_spectrum;
   }
 
-  protected void setDataRange(float[] range) {
+  public void setDataRange(float[] range) {
     dataRange = range;
   }
 

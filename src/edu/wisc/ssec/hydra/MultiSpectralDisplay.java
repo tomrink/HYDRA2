@@ -7,9 +7,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -41,22 +39,21 @@ import visad.VisADException;
 import visad.bom.RubberBandBoxRendererJ3D;
 import visad.java3d.DefaultRendererJ3D;
 
-import ucar.unidata.data.DirectDataChoice;
+import edu.wisc.ssec.hydra.data.DataChoice;
 import ucar.visad.display.DisplayableData;
 import ucar.visad.display.XYDisplay;
 
 import edu.wisc.ssec.adapter.GrabLineRendererJ3D;
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
 import edu.wisc.ssec.adapter.MultiSpectralData;
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
-import visad.util.HersheyFont;
+import edu.wisc.ssec.hydra.data.MultiSpectralDataSource;
 
 public class MultiSpectralDisplay implements DisplayListener {
 
     private static final String DISP_NAME = "Spectrum";
     private static int cnt = 1;
 
-    private DirectDataChoice dataChoice;
+    private DataChoice dataChoice;
 
     private float[] initialRangeX;
     private float[] initialRangeY = { 180f, 320f };
@@ -106,21 +103,21 @@ public class MultiSpectralDisplay implements DisplayListener {
     
     public MultiChannelViewer processor = null;
 
-    public MultiSpectralDisplay(final DirectDataChoice dataChoice) 
+    public MultiSpectralDisplay(final DataChoice dataChoice) 
         throws VisADException, RemoteException 
     {
         this.dataChoice = dataChoice;
         init(Float.NaN, null, null);
     }
 
-    public MultiSpectralDisplay(final DirectDataChoice dataChoice, float initWaveNumber) 
+    public MultiSpectralDisplay(final DataChoice dataChoice, float initWaveNumber) 
         throws VisADException, RemoteException
     {
         this.dataChoice = dataChoice;
         init(initWaveNumber, null, null);
     }
 
-    public MultiSpectralDisplay(final DirectDataChoice dataChoice, float initWaveNumber, float[] xMapRange, float[] yMapRange)
+    public MultiSpectralDisplay(final DataChoice dataChoice, float initWaveNumber, float[] xMapRange, float[] yMapRange)
         throws VisADException, RemoteException
     {
        this.dataChoice = dataChoice;
@@ -130,15 +127,7 @@ public class MultiSpectralDisplay implements DisplayListener {
     public FlatField getImageData() {
         try {
            // check if subset has changed in the dataChoice
-              MultiDimensionSubset select = null;
-              Hashtable table = dataChoice.getProperties();
-              Enumeration keys = table.keys();
-              while (keys.hasMoreElements()) {
-                Object key = keys.nextElement();
-                if (key instanceof MultiDimensionSubset) {
-                  select = (MultiDimensionSubset) table.get(key);
-                }
-              }
+              MultiDimensionSubset select = (MultiDimensionSubset) dataChoice.getDataSelection();
               HashMap subset = select.getSubset();
               image = data.getImage(waveNumber, subset);
               image = processRange(image, waveNumber);
@@ -233,16 +222,8 @@ public class MultiSpectralDisplay implements DisplayListener {
     	
         Object source = dataChoice.getDataSource();
 
-            MultiDimensionSubset select = null;
-            Hashtable table = dataChoice.getProperties();
-            Enumeration keys = table.keys();
-            while (keys.hasMoreElements()) {
-              Object key = keys.nextElement();
-              if (key instanceof MultiDimensionSubset) {
-                select = (MultiDimensionSubset) table.get(key);
-              }
-            }
-            subset = select.getSubset();
+        MultiDimensionSubset select = (MultiDimensionSubset) dataChoice.getDataSelection();
+        subset = select.getSubset();
 
 
         if (source instanceof MultiSpectralDataSource) {

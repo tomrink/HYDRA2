@@ -1,10 +1,8 @@
 package edu.wisc.ssec.hydra;
 
-import java.io.*;
 import java.lang.Math;
 import java.lang.String;
 import java.lang.*;
-import java.util.*;
 
 
 public class GEOSTransform {

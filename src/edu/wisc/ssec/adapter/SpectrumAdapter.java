@@ -39,6 +39,7 @@ import visad.RealType;
 import visad.SampledSet;
 import visad.Set;
 import visad.SingletonSet;
+import visad.VisADException;
 
 public class SpectrumAdapter extends MultiDimensionAdapter {
 
@@ -267,7 +268,7 @@ public class SpectrumAdapter extends MultiDimensionAdapter {
     return subset;
   }
 
-  public int getChannelIndexFromWavenumber(float wavenumber) throws Exception {
+  public int getChannelIndexFromWavenumber(float wavenumber) throws VisADException {
     int idx = (domainSet.valueToIndex(new float[][] {{wavenumber}}))[0];
     idx = channel_sort[idx];
     if (channelIndices != null) {
@@ -276,7 +277,7 @@ public class SpectrumAdapter extends MultiDimensionAdapter {
     return idx;
   }
 
-  public float getWavenumberFromChannelIndex(int index) throws Exception {
+  public float getWavenumberFromChannelIndex(int index) throws VisADException {
     int idx = index;
     if (channelIndices != null) {
        for (int i=0; i<numChannels; i++) {

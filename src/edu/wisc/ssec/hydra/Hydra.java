@@ -1,17 +1,14 @@
 package edu.wisc.ssec.hydra;
 
-import edu.wisc.ssec.hydra.data.AtmSoundingDataSource;
 import edu.wisc.ssec.hydra.data.DataSource;
-import edu.wisc.ssec.hydra.data.VIIRSDataSource;
+import edu.wisc.ssec.hydra.data.DataSourceFactory;
 import javax.swing.JFrame;
-import javax.swing.JPanel;
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.JMenuBar;
 
 import java.awt.Component;
-import java.awt.BorderLayout;
 import java.awt.geom.Rectangle2D;
 import java.awt.Dimension;
 import java.awt.Color;
@@ -31,13 +28,12 @@ import java.lang.Float;
 
 import ucar.unidata.util.Range;
 import ucar.unidata.util.ColorTable;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.ui.colortable.ColorTableDefaults;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
+//import ucar.unidata.ui.colortable.ColorTableDefaults;
 import edu.wisc.ssec.adapter.MultiSpectralData;
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
-import edu.wisc.ssec.adapter.MultiDimensionDataSource;
+import edu.wisc.ssec.adapter.MultiDimensionSubset;
+import edu.wisc.ssec.hydra.data.MultiSpectralDataSource;
 import edu.wisc.ssec.adapter.LongitudeLatitudeCoordinateSystem;
 import edu.wisc.ssec.adapter.ReprojectSwath;
 
@@ -76,21 +72,13 @@ import java.io.InputStreamReader;
 
 public class Hydra {
 
-   PreviewSelection preview = null;
-
    Selection selection = null;
 
-   DataSourceImpl dataSource = null;
+   DataSource dataSource = null;
 
-   List dataChoices = null;
+   public static ColorTable grayTable = new ColorTable("gray", "gray", grayTable(256, false));
 
-   DataChoice choice = null;
-
-   DataChoice selectedDataChoice = null;
-
-   public static ColorTable grayTable = new ColorTable("gray", "gray", ColorTableDefaults.grayTable(256, false));
-
-   public static ColorTable invGrayTable = new ColorTable("invGray", "invGray", ColorTableDefaults.grayTable(256, true));
+   public static ColorTable invGrayTable = new ColorTable("invGray", "invGray", grayTable(256, true));
 
    public static ColorTable rainbow = null;
 
@@ -146,12 +134,13 @@ public class Hydra {
    static int numDataSourcesOpened = 0;
 
    public boolean multiDisplay = false;
+   public boolean singleChannelDisplay = true;
    public boolean multiChannelDisplay = false;
-   public boolean atmSoundingDisplay = false;
-   
-   public static String dateTimeStr = "dateTimeStr";
+   public boolean atmRetrievalDisplay = false;
    
    private static int uniqueID = 0;
+   
+   private DataSourceFactory dataSourceFactory = new DataSourceFactory();
 
    public Hydra() {
    }
@@ -161,15 +150,18 @@ public class Hydra {
    }
 
    public void dataSourceSelected(File dir, Class ds) {
+     try {
+        dataSource = dataSourceFactory.createDataSource(dir, ds);
+     } 
+     catch (Exception e) {
+        e.printStackTrace();
+     }
+
+     sourceDescription = dataSource.getDescription();
+     dateTimeStamp = dataSource.getDateTimeStamp();
      numDataSourcesOpened++;
-     dataSource = DataSource.createDataSource(dir, ds);
 
-     sourceDescription = DataSource.getDescription(dataSource);
-     dateTimeStamp = DataSource.getDateTimeStamp(dataSource);
-     dataSource.setProperty(Hydra.dateTimeStr, dateTimeStamp);
-
-     selection = new BasicSelection(dataSource, choice, this);
-     selection.setDataSourceId(numDataSourcesOpened);
+     selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
    }
 
    public DataBrowser getDataBrowser() {
@@ -178,138 +170,50 @@ public class Hydra {
 
    public void dataSourceSelected(File[] files) {
       String filename = files[0].getName();
-
-      if (filename.contains("ABI-L2-CMIP")) {
-         dataSource = DataSource.createDataSource(files);
-         dataChoices = dataSource.getDataChoices();
-         choice = (DataChoice) dataChoices.get(0);
-         selection = new BasicSelection(dataSource, choice, this);
-         selection.setDataSourceId(numDataSourcesOpened);
-         return;
+      
+      try {
+         dataSource = dataSourceFactory.createDataSource(files);
       }
-
-      if (filename.contains("NPR-MIRS")) {
-         dataSource = DataSource.createDataSource(files);
-         dataChoices = dataSource.getDataChoices();
-         choice = (DataChoice) dataChoices.get(0);
-         dateTimeStamp = DataSource.getDateTimeStampFromFilename(filename, null);
-         dataSource.setProperty(Hydra.dateTimeStr, dateTimeStamp);
-         sourceDescription = DataSource.getDescriptionFromFilename(filename);
-         selection = new BasicSelection(dataSource, choice, this);
-         selection.setDataSourceId(numDataSourcesOpened);
-         return;
+      catch (Exception e) {
+         e.printStackTrace();
       }
-
-      if (filename.startsWith("SCRIS_npp") || filename.startsWith("GCRSO") ||
-          filename.startsWith("SATMS_npp") || filename.startsWith("GATMO") ||
-          filename.contains("L1B.AIRS_Rad") ||
-          filename.startsWith("IASI_xxx_1C") ||
-          (filename.contains("IASI_C") && filename.endsWith(".nc")) ||
-          (filename.startsWith("iasil1c") && filename.endsWith(".h5")) ||
-          filename.startsWith("HIRS_xxx_1B") || 
-          (filename.contains("HIRS_C") && filename.endsWith(".nc")) || 
-          (filename.startsWith("hirsl1c") && filename.endsWith(".h5")) ||
-          filename.startsWith("MHSx_xxx_1B") ||
-          (filename.contains("MHS_C") && filename.endsWith(".nc")) ||
-          filename.startsWith("AMSA_xxx_1B") ||
-          (filename.contains("AMSUA_C") && filename.endsWith(".nc")) ||
-          (filename.startsWith("amsual1c") && filename.endsWith(".h5")) ||
-          (filename.startsWith("mhsl1c") && filename.endsWith(".h5")) )
-      {
-         numDataSourcesOpened++;
-         dataSource = DataSource.createDataSource(files);
-         filename = files[0].getName();
-         sourceDescription = DataSource.getDescriptionFromFilename(filename);
-         dateTimeStamp = DataSource.getDateTimeStampFromDataSource(dataSource);
-         if (filename.startsWith("SCRIS") || filename.startsWith("SATMS_npp") || filename.startsWith("GATMO-SATMS")) {
-           dateTimeStamp = DataSource.getDateTimeStampFromFilename(filename, "Suomi");
-         }
-         if (dateTimeStamp == null) {
-           dateTimeStamp = DataSource.getDateTimeStampFromFilename(filename, null);
-         }
-         dataSource.setProperty(Hydra.dateTimeStr, dateTimeStamp);
-         dataChoices = dataSource.getDataChoices();
-         choice = (DataChoice) dataChoices.get(0);
-         selection = new BasicSelection(dataSource, choice, this);
-         selection.setDataSourceId(numDataSourcesOpened);
-         multiDisplay = true;
-         multiChannelDisplay = true;
-         return;
-      }
-
-      if ((filename.startsWith("AIRS") && filename.contains("atm_prof_rtv")) ||
-          (filename.startsWith("CrIS") && filename.contains("atm_prof_rtv")) ||
-          (filename.startsWith("IASI") && filename.contains("atm_prof_rtv")) ) {
-         numDataSourcesOpened++;
-         dataSource = DataSource.createDataSource(files);
-         dataChoices = dataSource.getDataChoices();
-         sourceDescription = dataSource.getDescription();
-         dateTimeStamp = ((AtmSoundingDataSource)dataSource).getDateTimeStamp();
-         if (dateTimeStamp == null) {
-             dateTimeStamp = DataSource.getDateTimeStampFromFilename(filename, null);
-         }
-         dataSource.setProperty(Hydra.dateTimeStr, dateTimeStamp);
-         choice = (DataChoice) dataChoices.get(0);
-
-         selection = new BasicSelection(dataSource, choice, this);
-         selection.setDataSourceId(numDataSourcesOpened);
-         multiDisplay = true;
-         atmSoundingDisplay = true;
-         return;
-      }
-
-      dataSource = DataSource.createDataSource(files);
-      sourceDescription = DataSource.getDescription(dataSource);
-      dateTimeStamp = DataSource.getDateTimeStamp(dataSource);
+      
+      dateTimeStamp = dataSource.getDateTimeStamp();
+      sourceDescription = dataSource.getDescription();
       numDataSourcesOpened++;
 
-      if (dataSource instanceof VIIRSDataSource) {
-         selection = new BasicSelection(dataSource, null, this);
-         selection.setDataSourceId(numDataSourcesOpened);
-         return;
+      if (dataSource.isSounder()) {
+         multiChannelDisplay = true;
+         multiDisplay = true;
+      }
+      else if (dataSource.isAtmRetrieval()) {
+         atmRetrievalDisplay = true;
+         multiDisplay = true;
+      }
+      else if (dataSource.isImager()) {
+         multiChannelDisplay = false;
+         multiDisplay = false;
       }
 
       if (dataSource instanceof MultiSpectralDataSource) {
-         sourceDescription = DataSource.getDescriptionFromFilename(files[0].getName());
-         dateTimeStamp = ((MultiSpectralDataSource)dataSource).getDateTime();
-         if (dateTimeStamp == null) {
-            dateTimeStamp = DataSource.getDateTimeStampFromFilename(files[0].getName(), null);
-         }
          createMultiSpectralSelectionComponent();
       }
-      else if (dataSource instanceof MultiDimensionDataSource) {
-         sourceDescription = DataSource.getDescriptionFromFilename(files[0].getName());
-         String platform = null;
-         if (files[0].getName().contains("_npp_")) {
-            platform = "Suomi";
-         }
-         dateTimeStamp = DataSource.getDateTimeStampFromFilename(files[0].getName(), platform);
-         selection = new BasicSelection(dataSource, null, this);
+      else {
+         selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
       }
-      else { // just use BasicSelection here?
-         //createSelectionComponent();
-         selection = new BasicSelection(dataSource, null, this);
-      }
-      if (dateTimeStamp != null) {
-         dataSource.setProperty(Hydra.dateTimeStr, dateTimeStamp);
-      }
-      selection.setDataSourceId(numDataSourcesOpened);
-
    }
-
 
    public String toString() {
      return numDataSourcesOpened+": "+sourceDescription+" "+dateTimeStamp;
    }
 
    private void createMultiSpectralSelectionComponent() {
-      JPanel outerPanel = new JPanel();
-      outerPanel.setLayout(new BorderLayout());
-
-      if (dataSource instanceof MultiSpectralDataSource) {
-        selection = new MultiSpectralSelection((MultiSpectralDataSource)dataSource, choice, this);
+      if (dataSource.isImager()) {
+         selection = new MultiSpectralSelection((MultiSpectralDataSource)dataSource, this, numDataSourcesOpened);
       }
-
+      else {
+         selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
+      }
    }
 
    public void setCursorToWait() {
@@ -338,8 +242,10 @@ public class Hydra {
    }
 
    public boolean createImageDisplay(int mode, int windowNumber) {
+     DataChoice choice;
+     
      if (multiChannelDisplay) {
-        DataSelection dataSelection = new DataSelection();
+        DataSelection dataSelection = new MultiDimensionSubset();
         selection.applyToDataSelection(dataSelection);
         choice = selection.getSelectedDataChoice();
         try {
@@ -350,14 +256,13 @@ public class Hydra {
         }
         return true;
      }
-
-     if (atmSoundingDisplay) {
-        DataSelection dataSelection = new DataSelection();
+     else if (atmRetrievalDisplay) {
+        DataSelection dataSelection = new MultiDimensionSubset();
         selection.applyToDataSelection(dataSelection);
         choice = selection.getSelectedDataChoice();
         try {
            AtmSoundingViewer asv = new AtmSoundingViewer(choice, sourceDescription, dateTimeStamp, windowNumber, numDataSourcesOpened);
-           asv.setDataChoices(dataChoices);
+           asv.setDataChoices(dataSource.getDataChoices());
            selectFrame = asv.getFrame();
         } catch (Exception e) {
            e.printStackTrace();
@@ -367,21 +272,18 @@ public class Hydra {
 
 
      boolean imageCreated = false;
-     DataSelection dataSelection = new DataSelection();
+     DataSelection dataSelection = new MultiDimensionSubset();
         
-     if (preview != null) {
-       preview.applyToDataSelection(dataSelection);
-     }
 
      selection.applyToDataSelection(dataSelection);
      choice = selection.getSelectedDataChoice();
      fldName = selection.getSelectedName();
 
-     doReproject = DataSource.getDoReproject(dataSource, choice);
+     doReproject = dataSource.getDoReproject(choice);
 
      try {
         if (doReproject) {
-           nadirResolution = DataSource.getNadirResolution(dataSource, choice);
+           nadirResolution = dataSource.getNadirResolution(choice);
         }
      } 
      catch (Exception e) { 
@@ -390,12 +292,12 @@ public class Hydra {
 
      try {
         //- get the data
-        FlatField image = (FlatField) dataSource.getData(choice, null, dataSelection, null);
+        FlatField image = (FlatField) dataSource.getData(choice, dataSelection);
         FlatField swathImage = image;
 
         if (doReproject) {
-           if (DataSource.getReduceBowtie(dataSource, choice)) {
-              String sensorName = DataSource.getSensorName(dataSource, choice);
+           if (dataSource.getReduceBowtie(choice)) {
+              String sensorName = dataSource.getSensorName(choice);
               reduceSwathBowtie(image, sensorName);
            }
         }
@@ -410,7 +312,7 @@ public class Hydra {
           int reprojectMode = getReprojectMode();
           boolean filter = true;
           if (reprojectMode == 0) {
-              if (!DataSource.getDoFilter(choice)) {
+              if (!dataSource.getDoFilter(choice)) {
                   filter = false;
               }
           }
@@ -429,14 +331,12 @@ public class Hydra {
            }
         }
 
-        ColorTable clrTbl = DataSource.getDefaultColorTable(dataSource, choice);
-        Range range = DataSource.getDefaultColorRange(dataSource, choice);
+        ColorTable clrTbl = dataSource.getDefaultColorTable(choice);
+        Range range = dataSource.getDefaultColorRange(choice);
         
-        //DataDescriptor description = new DataDescriptor(sourceDescription, fldName, dateTimeStamp);
-
         if (mode == 0 || ImageDisplay.getTarget() == null) {
             //-- make the displayable
-            HydraRGBDisplayable imageDsp = makeImageDisplayable(image, range, clrTbl, fldName, dateTimeStamp);
+            HydraRGBDisplayable imageDsp = makeImageDisplayable(image, range, clrTbl, fldName, dateTimeStamp, sourceDescription);
             displayableToImage.put(imageDsp, swathImage);
             ImageDisplay iDisplay = new ImageDisplay(imageDsp, mapProj, windowNumber);
         }
@@ -446,8 +346,8 @@ public class Hydra {
         else if (mode == 2) {
            // TODO: Need to understand why this is necessary when doing 'overlay'.  IDV or VisAD issue?
            image = makeFlatFieldWithUniqueRange(image);
-           HydraRGBDisplayable imageDsp = makeImageDisplayable(image, range, clrTbl, fldName, dateTimeStamp);
-           if (DataSource.getOverlayAsMask(choice)) {
+           HydraRGBDisplayable imageDsp = makeImageDisplayable(image, range, clrTbl, fldName, dateTimeStamp, sourceDescription);
+           if (dataSource.getOverlayAsMask(choice)) {
               imageDsp.addConstantMap(new ConstantMap(1.0, Display.RenderOrderPriority));
               ImageDisplay.getTarget().addOverlayImage(imageDsp, true);
            }
@@ -590,7 +490,19 @@ public class Hydra {
     public static double[] minmax(double[] values) {
        return minmax(values, values.length);
     }
-
+    
+    public static FieldImpl infiniteToNaN(FieldImpl fltFld) throws VisADException, RemoteException {
+       float[][] fvals = fltFld.getFloats(false);
+       for (int t=0; t<fvals.length; t++) {
+          for (int i=0; i<fvals[0].length; i++) {
+             float flt = fvals[0][i];
+             if  (Float.isInfinite(flt)) {
+                fvals[0][i] = Float.NaN;
+             }
+          }  
+       }
+       return fltFld;
+    }
 
     public static FlatField cloneButRangeType(RealType newRange, FlatField ffield, boolean copy) throws VisADException, RemoteException {
         FunctionType ftype = (FunctionType) ffield.getType();
@@ -897,10 +809,10 @@ public class Hydra {
     
 
     public static HydraRGBDisplayable makeImageDisplayable(FlatField image, Range range, ColorTable colorTable, String name) throws VisADException, RemoteException {
-       return makeImageDisplayable(image, range, colorTable, name, null);
+       return makeImageDisplayable(image, range, colorTable, name, null, null);
     }
     
-    public static HydraRGBDisplayable makeImageDisplayable(FlatField image, Range range, ColorTable colorTable, String name, String dateTime) throws VisADException, RemoteException {
+    public static HydraRGBDisplayable makeImageDisplayable(FlatField image, Range range, ColorTable colorTable, String name, String dateTime, String desc) throws VisADException, RemoteException {
 
        RealType imageRangeType =
           (((FunctionType)image.getType()).getFlatRange().getRealComponents())[0];
@@ -912,17 +824,19 @@ public class Hydra {
        if (dateTime != null) {
            imageDsp.setDateTime(dateTime);
        }
+       if (desc != null) {
+          imageDsp.setDescription(desc);
+       }
     
        return imageDsp;
     }
 
     public static ImageRGBDisplayable makeRGBImageDisplayable(FlatField rgbImage) throws VisADException, RemoteException {
-        return makeRGBImageDisplayable(rgbImage, null);
+        return makeRGBImageDisplayable(rgbImage, null, null);
     }
     
-    public static ImageRGBDisplayable makeRGBImageDisplayable(FlatField rgbImage, String dateTime) throws VisADException, RemoteException {
-
-       ImageRGBDisplayable rgbDisplayable = new ImageRGBDisplayable("rgb composite", grayTable.getTable(), false, rgbImage);
+    public static ImageRGBDisplayable makeRGBImageDisplayable(FlatField rgbImage, String name, String dateTime) throws VisADException, RemoteException {
+       ImageRGBDisplayable rgbDisplayable = new ImageRGBDisplayable(name, grayTable.getTable(), false, rgbImage);
        rgbDisplayable.addConstantMap(new ConstantMap(0.0, Display.RenderOrderPriority));
        rgbDisplayable.setData(rgbImage);
        if (dateTime != null) {
@@ -1416,14 +1330,6 @@ public class Hydra {
      return newStr;
    }
 
-    public static ColorTable getDefaultColorTable(DataSourceImpl datasource, DataChoice dataChoice) {
-       return DataSource.getDefaultColorTable(datasource, dataChoice);
-    }
-
-    public static Range getDefaultColorRange(DataSourceImpl datasource, DataChoice dataChoice) {
-       return DataSource.getDefaultColorRange(datasource, dataChoice);
-    }
-
     public static ConstantMap[] makeConstantMapArray(ConstantMap[] cmaps, ConstantMap cmap) {
        ConstantMap[] constantMaps = new ConstantMap[cmaps.length+1];
        for (int k=0; k<cmaps.length; k++) {
@@ -1445,6 +1351,24 @@ public class Hydra {
                                    new ConstantMap(b, Display.Blue),
                                    new ConstantMap(a, Display.Alpha) };
     }
+    
+    public static final float[][] grayTable(int numColors, boolean inverse)
+            throws IllegalArgumentException {
+
+        float[][] table = new float[3][numColors];
+
+        float     scale = (float) (1.0f / (float) (numColors - 1));
+        for (int i = 0; i < numColors; i++) {
+            float a = (inverse)
+                      ? ((float) numColors - i)
+                      : ((float) i);
+            table[0][i] = a * scale;  // Red amount
+            table[1][i] = a * scale;  // Green
+            table[2][i] = a * scale;  // Blue
+        }
+        return table;
+    }
+
 
     public static void setRegionMatching(boolean on) {
        regionMatch = on;

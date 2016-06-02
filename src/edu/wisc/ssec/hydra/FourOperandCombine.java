@@ -4,34 +4,21 @@ import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.border.LineBorder;
 
 import java.awt.FlowLayout;
-import java.awt.Dimension;
 import java.awt.Color;
-import java.awt.Point;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
-
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
-import edu.wisc.ssec.adapter.MultiSpectralData;
 
 import visad.Data;
 import visad.FieldImpl;
 import visad.FlatField;
 import visad.RealType;
 import visad.FunctionType;
-import visad.Linear2DSet;
-import visad.VisADException;
 import visad.georef.MapProjection;
-import java.rmi.RemoteException;
 
 
 public class FourOperandCombine extends Compute {
@@ -231,6 +218,7 @@ public class FourOperandCombine extends Compute {
        }
        else if (operationAB == "/") {
           fldAB = (FieldImpl) fldA.divide(fldB);
+          fldAB = Hydra.infiniteToNaN(fldAB);
           nameAB = nameA+"divide"+nameB;
        }
        else if (operationAB == "*") {
@@ -266,6 +254,7 @@ public class FourOperandCombine extends Compute {
           }
           else if (operationCD == "/") {
              fldCD = (FieldImpl) fldC.divide(fldD);
+             fldCD = Hydra.infiniteToNaN(fldCD);
              nameCD = nameC+"divide"+nameD;
           }
           nameCD = nameCD;
@@ -292,6 +281,7 @@ public class FourOperandCombine extends Compute {
           }
           else if (operationLR == "/") {
              fld = (FlatField) fldAB.divide(fldCD);
+             fld = (FlatField) Hydra.infiniteToNaN(fld);
              operName = nameAB+"divide"+nameCD;
           }
        }
@@ -359,7 +349,7 @@ public class FourOperandCombine extends Compute {
        MapProjection mp = Hydra.getDataProjection(fld);
        
        if (mode == 0 || ImageDisplay.getTarget() == null) {
-          HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr);
+          HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr, null);
           ImageDisplay iDisplay = new ImageDisplay(imageDsp, mp, windowNumber);
        }
        else if (mode == 1) {
@@ -367,7 +357,7 @@ public class FourOperandCombine extends Compute {
        }
        else if (mode == 2) {
           fld = Hydra.makeFlatFieldWithUniqueRange(fld);
-          HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr);
+          HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr, null);
           ImageDisplay.getTarget().addOverlayImage(imageDsp);
       }
    }

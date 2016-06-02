@@ -1,26 +1,14 @@
 package edu.wisc.ssec.hydra;
 
-import edu.wisc.ssec.hydra.data.DataSource;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.border.LineBorder;
 
 import java.awt.FlowLayout;
-import java.awt.Dimension;
 import java.awt.Color;
-import java.awt.Point;
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
 
-
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
-
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
+import edu.wisc.ssec.hydra.data.MultiSpectralDataSource;
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.ReprojectSwath;
 
@@ -29,10 +17,7 @@ import visad.FlatField;
 import visad.Set;
 import visad.SetType;
 import visad.Linear2DSet;
-import visad.VisADException;
 import visad.georef.MapProjection;
-import java.rmi.RemoteException;
-import visad.FieldImpl;
 import visad.RealTupleType;
 import visad.RealType;
 import visad.FunctionType;
@@ -115,25 +100,41 @@ public class RGBComposite extends Compute {
    }
 
    public Data compute() throws Exception {
-       FlatField red = (FlatField) operands[0].getData();
-       FlatField grn = (FlatField) operands[1].getData();
-       FlatField blu = (FlatField) operands[2].getData();
+       Operand redOp = operands[0];
+       Operand grnOp = operands[1];
+       Operand bluOp = operands[2];
        
-       boolean redRepro = DataSource.getDoReproject(operands[0].dataSource, operands[0].dataChoice);
-       boolean grnRepro = DataSource.getDoReproject(operands[1].dataSource, operands[1].dataChoice);
-       boolean bluRepro = DataSource.getDoReproject(operands[2].dataSource, operands[2].dataChoice);
+       FlatField red = (FlatField) redOp.getData();
+       FlatField grn = (FlatField) grnOp.getData();
+       FlatField blu = (FlatField) bluOp.getData();
+       
+       boolean redRepro = redOp.dataSource.getDoReproject(redOp.dataChoice);
+       boolean grnRepro = grnOp.dataSource.getDoReproject(grnOp.dataChoice);
+       boolean bluRepro = bluOp.dataSource.getDoReproject(bluOp.dataChoice);
        
        boolean noneRepro = !redRepro && !grnRepro && !bluRepro;
        boolean allRepro = redRepro && grnRepro && bluRepro;
 
-       float redRes = DataSource.getNadirResolution(operands[0].dataSource, operands[0].dataChoice);
-       float grnRes = DataSource.getNadirResolution(operands[1].dataSource, operands[1].dataChoice);
-       float bluRes = DataSource.getNadirResolution(operands[2].dataSource, operands[2].dataChoice);
+       float redRes = redOp.dataSource.getNadirResolution(redOp.dataChoice);
+       float grnRes = grnOp.dataSource.getNadirResolution(grnOp.dataChoice);
+       float bluRes = bluOp.dataSource.getNadirResolution(bluOp.dataChoice);
        
        
-       dateTimeStr = (String) operands[0].dataSource.getProperty(Hydra.dateTimeStr);
+       dateTimeStr = (String) operands[0].dataSource.getDateTimeStamp();
        FlatField rgb = null;
        if (allRepro) {
+          if (redOp.dataSource.getReduceBowtie(redOp.dataChoice)) {
+             String sensorName = redOp.dataSource.getSensorName(redOp.dataChoice);
+             Hydra.reduceSwathBowtie(red, sensorName);
+          } 
+          if (grnOp.dataSource.getReduceBowtie(grnOp.dataChoice)) {
+             String sensorName = grnOp.dataSource.getSensorName(grnOp.dataChoice);
+             Hydra.reduceSwathBowtie(grn, sensorName);
+          }
+          if (bluOp.dataSource.getReduceBowtie(bluOp.dataChoice)) {
+             String sensorName = bluOp.dataSource.getSensorName(bluOp.dataChoice);
+             Hydra.reduceSwathBowtie(blu, sensorName);
+          }                    
           float nadirResolution = redRes;
           float[][] corners = MultiSpectralData.getLonLatBoundingCorners(red.getDomainSet());
           MapProjection mp = MultiSpectralDataSource.getSwathProjection(red, corners);
@@ -170,7 +171,7 @@ public class RGBComposite extends Compute {
       MapProjection mp;
       mp = Hydra.getDataProjection(rgb);
 
-      ImageRGBDisplayable imageDsp = Hydra.makeRGBImageDisplayable(rgb, dateTimeStr);
+      ImageRGBDisplayable imageDsp = Hydra.makeRGBImageDisplayable(rgb, getOperationName(), dateTimeStr);
 
       if (mode == 0 || ImageDisplay.getTarget() == null) {
          ImageDisplay iDisplay = new ImageDisplay(imageDsp, mp, windowNumber);

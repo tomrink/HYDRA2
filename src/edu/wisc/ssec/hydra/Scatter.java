@@ -2,13 +2,10 @@ package edu.wisc.ssec.hydra;
 
 import ucar.visad.display.DisplayMaster;
 import ucar.visad.display.XYDisplay;
-import ucar.visad.display.Displayable;
 import ucar.visad.display.RGBDisplayable;
 
 import visad.georef.MapProjection;
 
-import edu.wisc.ssec.adapter.MultiSpectralData;
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
 import edu.wisc.ssec.adapter.ReprojectSwath;
 
 import visad.*;
@@ -17,8 +14,6 @@ import java.rmi.RemoteException;
 import java.awt.Dimension;
 import java.awt.Component;
 import java.awt.Color;
-import java.awt.event.WindowListener;
-import java.awt.event.WindowEvent;
 
 import javax.swing.JFrame;
 

@@ -1,6 +1,6 @@
 package edu.wisc.ssec.hydra;
 
-import ucar.unidata.data.DataSourceImpl;
+import edu.wisc.ssec.hydra.data.DataSource;
 import javax.swing.*;
 import java.util.*;
 
@@ -11,11 +11,11 @@ public abstract class SelectionAdapter implements Selection {
 
     protected ArrayList<SelectionListener> selectionListeners = new ArrayList<SelectionListener>();
 
-    private DataSourceImpl dataSource;
+    private DataSource dataSource;
 
     public static SelectionEvent lastSelectionEvent = null;
 
-    public SelectionAdapter(DataSourceImpl dataSource) {
+    public SelectionAdapter(DataSource dataSource) {
        this.dataSource = dataSource;
        for (int k=0; k<listOfSelectors.size(); k++) {
           Selection selection = listOfSelectors.get(k);
@@ -33,10 +33,7 @@ public abstract class SelectionAdapter implements Selection {
        this(null);
     }
 
-    public void setDataSourceId(int dataSourceId) {
-    }
-
-    public DataSourceImpl getDataSource() {
+    public DataSource getDataSource() {
       return dataSource;
     }
 

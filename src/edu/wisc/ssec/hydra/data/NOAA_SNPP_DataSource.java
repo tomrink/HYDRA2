@@ -1,10 +1,6 @@
 package edu.wisc.ssec.hydra.data;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -26,15 +22,12 @@ import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.MultiDimensionAdapter;
 import visad.VisADException;
 import visad.Data;
-import visad.FlatField;
 import java.rmi.RemoteException;
-import java.util.Enumeration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import ucar.unidata.data.DirectDataChoice;
 
 
-public class NOAA_SNPP_DataSource extends DataSourceImpl {
+public class NOAA_SNPP_DataSource extends DataSource {
 
    String dateTimeStamp = null;
 
@@ -84,7 +77,6 @@ public class NOAA_SNPP_DataSource extends DataSourceImpl {
    }
 
    public NOAA_SNPP_DataSource(File[] files) throws Exception {
-      super(new DataSourceDescriptor(), "SNPP", "SNPP", new Hashtable());
       
       File file = files[0];
       String name = file.getName();
@@ -130,7 +122,8 @@ public class NOAA_SNPP_DataSource extends DataSourceImpl {
          }
       }
       
-      dateTimeStamp = DataSource.getDateTimeStampFromFilename(file.getName(), "Suomi");
+      dateTimeStamp = DataSource.getDateTimeStampFromFilename(file.getName());
+      description = DataSource.getDescriptionFromFilename(file.getName());
       
       try {
          init(files, geoFiles);
@@ -332,6 +325,22 @@ public class NOAA_SNPP_DataSource extends DataSourceImpl {
        return myDataChoices;
    }
    
+   public String getDateTimeStamp() {
+      return dateTimeStamp;
+   }
+   
+   public String getDescription() {
+      return description;
+   }
+   
+   public boolean isMultiSpectral() {
+      return true;
+   }
+   
+   public boolean isSounder() {
+      return true;
+   }
+   
    public HashMap fillSwathMetadataTable(String xtrack, String track, String channel, String fovIndex,
                                     String array, String range, String geoXtrack, String geoTrack,
                                     String lonArray, String latArray, String[] arrayDims, String[] lonArrayDims, String[] latArrayDims,
@@ -385,52 +394,21 @@ public class NOAA_SNPP_DataSource extends DataSourceImpl {
    DataChoice setDataChoice(MultiSpectralData adapter, int idx, String name) {
        HashMap subset = adapter.getDefaultSubset();
        DataSelection dataSel = new MultiDimensionSubset(subset);
-       Hashtable props = new Hashtable();
-       props.put(MultiDimensionSubset.key, dataSel);
-       DataChoice dataChoice = new DirectDataChoice(this, idx, name, name, null, props);
-       dataChoice.setProperties(props);
+       DataChoice dataChoice = new DataChoice(this, name, null);
+       dataChoice.setDataSelection(dataSel);
        myDataChoices.add(dataChoice);
        return dataChoice;
     }  
 
-    public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
-    }
-
-
-    protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
+   public Data getData(DataChoice dataChoice, DataSelection dataSelection)
                                 throws VisADException, RemoteException 
     {
       try {
          MultiDimensionAdapter adapter = getMultiSpectralData(dataChoice);
          
          
-         MultiDimensionSubset select = null;
-         Hashtable table = dataChoice.getProperties();
-         Enumeration keys = table.keys();
-         while (keys.hasMoreElements()) {
-             Object key = keys.nextElement();
-             if (key instanceof MultiDimensionSubset) {
-                select = (MultiDimensionSubset) table.get(key);
-             }
-         }
+         MultiDimensionSubset select = (MultiDimensionSubset) dataChoice.getDataSelection();
          HashMap subset = select.getSubset();
-         
-         if (dataSelection != null) {
-             Hashtable props = dataSelection.getProperties();
-             if (props != null) {
-               if (props.containsKey(SpectrumAdapter.channelIndex_name)) {
-                 double[] coords = (double[]) subset.get(SpectrumAdapter.channelIndex_name);
-                 int idx = ((Integer) props.get(SpectrumAdapter.channelIndex_name)).intValue();
-                 coords[0] = (double)idx;
-                 coords[1] = (double)idx;
-                 coords[2] = (double)1;
-               }
-             }
-         }
          
          Data data = adapter.getData(subset);
          return data;

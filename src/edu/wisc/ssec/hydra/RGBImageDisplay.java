@@ -2,43 +2,28 @@ package edu.wisc.ssec.hydra;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JComponent;
-import javax.swing.JFileChooser;
-import javax.swing.SwingUtilities;
 import javax.swing.JButton;
 import javax.swing.ImageIcon;
-import javax.swing.UIManager;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 
-import java.awt.Component;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
-import java.awt.geom.Rectangle2D;
 import java.awt.Dimension;
-import java.awt.Color;
 
 import ucar.visad.display.DisplayMaster;
-import ucar.visad.display.LineDrawing;
-import ucar.visad.display.MapLines;
-import ucar.visad.display.RGBDisplayable;
-import ucar.visad.display.RubberBandBox;
-import ucar.visad.display.XYDisplay;
 import ucar.visad.display.CrossSectionSelector;
 
 import ucar.unidata.view.geoloc.MapProjectionDisplay;
 import ucar.unidata.view.geoloc.MapProjectionDisplayJ3D;
 
 
-import visad.data.mcidas.BaseMapAdapter;
 import visad.georef.MapProjection;
-import visad.georef.TrivialMapProjection;
 
 import visad.*;
-import visad.MouseHelper;
 import java.rmi.RemoteException;
 
 

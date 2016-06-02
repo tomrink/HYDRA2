@@ -1,10 +1,10 @@
 package edu.wisc.ssec.hydra;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSource;
+import edu.wisc.ssec.hydra.data.DataChoice;
 
 public class SelectionEvent { //should extend EventObject?
-  DataSourceImpl dataSource;
+  DataSource dataSource;
   DataChoice choice;
   String name;
   Selection selection;
@@ -12,11 +12,11 @@ public class SelectionEvent { //should extend EventObject?
   Compute compute;
   boolean fromCompute = false;
 
-  public SelectionEvent(Selection selection, DataSourceImpl dataSource, DataChoice choice) {
+  public SelectionEvent(Selection selection, DataSource dataSource, DataChoice choice) {
      this(selection, dataSource, choice, null);
   }
 
-  public SelectionEvent(Selection selection, DataSourceImpl dataSource, DataChoice choice, String name) {
+  public SelectionEvent(Selection selection, DataSource dataSource, DataChoice choice, String name) {
     this.dataSource = dataSource;
     this.choice = choice;
     this.name = name;
@@ -30,7 +30,7 @@ public class SelectionEvent { //should extend EventObject?
     this.fromCompute = true;
   }
 
-  public DataSourceImpl getDataSource() {
+  public DataSource getDataSource() {
     return dataSource;
   }
 

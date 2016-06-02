@@ -1,8 +1,7 @@
 package edu.wisc.ssec.hydra;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 
 public class FormulaSelection extends SelectionAdapter {
 

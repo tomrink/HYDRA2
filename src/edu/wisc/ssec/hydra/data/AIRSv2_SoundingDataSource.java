@@ -1,27 +1,14 @@
 package edu.wisc.ssec.hydra.data;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataChoice;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.List;
-import java.util.ArrayList;
-import edu.wisc.ssec.adapter.SwathAdapter;
-import edu.wisc.ssec.adapter.AtmSoundingAdapter;
-import edu.wisc.ssec.adapter.CrIS_SDR_SwathAdapter;
-import edu.wisc.ssec.adapter.CrIS_SwathSoundingData;
 import edu.wisc.ssec.adapter.SwathSoundingData;
 import edu.wisc.ssec.adapter.NetCDFFile;
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
-import visad.VisADException;
-import visad.Data;
-import visad.FlatField;
-import java.rmi.RemoteException;
 
 
 public class AIRSv2_SoundingDataSource extends AtmSoundingDataSource {
@@ -51,10 +38,8 @@ public class AIRSv2_SoundingDataSource extends AtmSoundingDataSource {
 
       HashMap subset = dataTA.getDefaultSubset();
       DataSelection dataSel = new MultiDimensionSubset(subset);
-      Hashtable props = new Hashtable();
-      props.put(MultiDimensionSubset.key, dataSel);
-      DataChoice dataChoice = new DirectDataChoice(this, 0, "Temp", "Temp", null, props);
-      dataChoice.setProperties(props);
+      DataChoice dataChoice = new DataChoice(this, "Temp", null);
+      dataChoice.setDataSelection(dataSel);
       myDataChoices.add(dataChoice);
       mySoundingDatas.add(dataTA);
 
@@ -63,9 +48,8 @@ public class AIRSv2_SoundingDataSource extends AtmSoundingDataSource {
       dataWV.setDataRange(new float[] {0, 20});
       subset = dataWV.getDefaultSubset();
       dataSel = new MultiDimensionSubset(subset);
-      props = new Hashtable();
-      props.put(MultiDimensionSubset.key, dataSel);
-      dataChoice = new DirectDataChoice(this, 1, "WV", "WV", null, props);
+      dataChoice = new DataChoice(this, "WV", null);
+      dataChoice.setDataSelection(dataSel);
       myDataChoices.add(dataChoice);
       mySoundingDatas.add(dataWV);
 
@@ -75,19 +59,10 @@ public class AIRSv2_SoundingDataSource extends AtmSoundingDataSource {
       dataO3.setDataRange(new float[] {0, 20});
       subset = dataO3.getDefaultSubset();
       dataSel = new MultiDimensionSubset(subset);
-      props = new Hashtable();
-      props.put(MultiDimensionSubset.key, dataSel);
-      dataChoice = new DirectDataChoice(this, 2, "O3", "O3", null, props);
+      dataChoice = new DataChoice(this, "O3", null);
+      dataChoice.setDataSelection(dataSel);
       myDataChoices.add(dataChoice);
       mySoundingDatas.add(dataO3);
-   }
-   
-   public String getDescription() {
-     return "AIRS Retrvl";
-   }
-
-   public String getDateTimeStamp() {
-     return null;
    }
 
 }

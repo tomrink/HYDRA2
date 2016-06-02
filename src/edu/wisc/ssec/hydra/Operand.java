@@ -1,17 +1,15 @@
 package edu.wisc.ssec.hydra;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataSource;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 
 import visad.Data;
-import visad.VisADException;
-import java.rmi.RemoteException;
 
 public class Operand {
        boolean isEmpty = true;
 
-       DataSourceImpl dataSource;
+       DataSource dataSource;
        DataSelection dataSelection;
        DataChoice dataChoice;
        Selection selection;
@@ -30,7 +28,7 @@ public class Operand {
           }
           else {
              update();
-             data = dataSource.getData(dataChoice, null, dataSelection, null);
+             data = dataSource.getData(dataChoice, dataSelection);
           }
           return data;
        }

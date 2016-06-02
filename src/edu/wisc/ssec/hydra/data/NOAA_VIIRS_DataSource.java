@@ -1,13 +1,8 @@
 package edu.wisc.ssec.hydra.data;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.ArrayList;
 import edu.wisc.ssec.adapter.SwathAdapter;
@@ -19,13 +14,11 @@ import edu.wisc.ssec.adapter.AggregationRangeProcessor;
 import visad.VisADException;
 import visad.Data;
 import java.rmi.RemoteException;
-import java.util.Enumeration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import ucar.unidata.data.DirectDataChoice;
 
 
-public class NOAA_VIIRS_DataSource extends DataSourceImpl {
+public class NOAA_VIIRS_DataSource extends DataSource {
 
    String dateTimeStamp = null;
 
@@ -45,7 +38,6 @@ public class NOAA_VIIRS_DataSource extends DataSourceImpl {
    }
 
    public NOAA_VIIRS_DataSource(File[] files) throws Exception {
-      super(new DataSourceDescriptor(), "VIIRS", "VIIRS", new Hashtable());
       
       ArrayList<File> geoFileList = new ArrayList<File>();
 
@@ -92,7 +84,7 @@ public class NOAA_VIIRS_DataSource extends DataSourceImpl {
          }
       }
       
-      dateTimeStamp = DataSource.getDateTimeStampFromFilename(file.getName(), "Suomi");
+      dateTimeStamp = DataSource.getDateTimeStampFromFilename(file.getName());
       
       try {
          init(files, geoFiles);
@@ -239,37 +231,22 @@ public class NOAA_VIIRS_DataSource extends DataSourceImpl {
     void setDataChoice(SwathAdapter adapter, int idx, String name) {
        HashMap subset = adapter.getDefaultSubset();
        DataSelection dataSel = new MultiDimensionSubset(subset);
-       Hashtable props = new Hashtable();
-       props.put(MultiDimensionSubset.key, dataSel);
-       DataChoice dataChoice = new DirectDataChoice(this, idx, name, name, null, props);
-       dataChoice.setProperties(props);
+       DataChoice dataChoice = new DataChoice(this, name, null);
+       dataChoice.setDataSelection(dataSel);
        myDataChoices.add(dataChoice);
        swathAdapters.add(adapter);       
     }  
 
-    public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
-    }
 
-
-    protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException 
+   public Data getData(DataChoice dataChoice, DataSelection dataSelection)
+       throws VisADException, RemoteException 
     {
       try {
          SwathAdapter adapter = getSwathAdapter(dataChoice);
          
          MultiDimensionSubset select = null;
-         Hashtable table = dataChoice.getProperties();
-         Enumeration keys = table.keys();
-         while (keys.hasMoreElements()) {
-             Object key = keys.nextElement();
-             if (key instanceof MultiDimensionSubset) {
-                select = (MultiDimensionSubset) table.get(key);
-             }
-         }
+         select = (MultiDimensionSubset) dataChoice.getDataSelection();
+         
          HashMap subset = select.getSubset();
          
          Data data = adapter.getData(subset);

@@ -1,7 +1,6 @@
 package edu.wisc.ssec.hydra;
 
 import edu.wisc.ssec.adapter.SubsetRubberBandBox;
-import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
 import edu.wisc.ssec.adapter.HydraContext;
 
@@ -12,7 +11,6 @@ import ucar.visad.display.DisplayMaster;
 import ucar.visad.display.LineDrawing;
 
 import visad.*;
-import visad.georef.MapProjection;
 
 import java.rmi.RemoteException;
 

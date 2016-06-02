@@ -1,16 +1,10 @@
 package edu.wisc.ssec.hydra.data;
 
 import edu.wisc.ssec.hydra.Hydra;
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.util.Misc;
 import ucar.unidata.util.Range;
 import java.io.File;
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
-import edu.wisc.ssec.adapter.MultiDimensionDataSource;
+import java.rmi.RemoteException;
 import ucar.unidata.util.ColorTable;
-import visad.VisADException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -20,252 +14,12 @@ import java.util.List;
 import visad.*;
 
 public class DataSource {
-
-   public static DataSourceImpl createDataSource(File[] files) {
-      String[] fileNames = new String[files.length];
-      for (int k=0; k<fileNames.length; k++) {
-        File f = files[k];
-        String fileNameAbsolute = f.getParent() + File.separatorChar + f.getName();
-        fileNames[k] = fileNameAbsolute;
-      }
-      String name = files[0].getName();
-      try {
-        if (name.startsWith("NPR-MIRS")) {
-           GenericDataSource dataSource = new GenericDataSource(files);
-           return dataSource;
-        }
-        if (name.contains("ABI-L2-CMIP") || name.startsWith("HS_H08") || name.contains("HIMAWARI8-AHI")) {
-           GEOSDataSource dataSource = new GEOSDataSource(fileNames[0]);
-           return dataSource;
-        }
-        if (files[0].getName().startsWith("SV") || files[0].getName().startsWith("GM") ||
-            files[0].getName().startsWith("SV") || files[0].getName().startsWith("GI") ||
-            files[0].getName().startsWith("SV") || files[0].getName().startsWith("GD")) {
-          VIIRSDataSource dataSource = new VIIRSDataSource(files);
-          return dataSource;
-        }
-        if (files[0].getName().startsWith("SCRIS") || files[0].getName().startsWith("GCRSO")) {
-          ArrayList<File> dataList = new <File>ArrayList();
-          for (int i=0; i<files.length; i++) {
-             String fname = files[i].getName();
-             if (fname.startsWith("SCRIS") || fname.startsWith("GCRSO-SCRIS_npp")) {
-                dataList.add(files[i]);
-             }
-          }
-          ArrayList<String> sortedList = null;
-          try {
-             sortedList = DataSource.getTimeSortedFilenameList(dataList, "Suomi");
-             
-          } catch (Exception e) {
-              e.printStackTrace();
-          }
-          for (int i=0; i<sortedList.size(); i++) {
-             files[i] = new File(sortedList.get(i));
-          }
-          try {
-             NOAA_SNPP_DataSource dataSource = new NOAA_SNPP_DataSource(files);
-             return dataSource;
-          } catch (Exception exc) {
-             exc.printStackTrace();
-          }          
-        }
-        if (files[0].getName().startsWith("SATMS_npp") || files[0].getName().startsWith("GATMO")) {
-          ArrayList<File> dataList = new <File>ArrayList();
-          for (int i=0; i<files.length; i++) {
-             String fname = files[i].getName();
-             if (fname.startsWith("SATMS_npp") || fname.startsWith("GATMO-SATMS_npp")) {
-                dataList.add(files[i]);
-             }
-          }
-          ArrayList<String> sortedList = null;
-          try {
-              sortedList = DataSource.getTimeSortedFilenameList(dataList, "Suomi");
-          } catch (Exception e) {
-              e.printStackTrace();
-          }
-          for (int i=0; i<sortedList.size(); i++) {
-             files[i] = new File(sortedList.get(i));
-          }
-          try {
-             NOAA_SNPP_DataSource dataSource = new NOAA_SNPP_DataSource(files);
-             return dataSource;
-          } catch (Exception exc) {
-             exc.printStackTrace();
-          }
-        }
-        if (files[0].getName().startsWith("AIRS") && files[0].getName().contains("atm_prof_rtv") && files[0].getName().endsWith(".hdf")) {
-          AtmSoundingDataSource dataSource = new AIRSv1_SoundingDataSource(files);
-          return dataSource;
-        }
-        if (files[0].getName().startsWith("AIRS") && files[0].getName().contains("atm_prof_rtv") && files[0].getName().endsWith(".h5")) {
-          AtmSoundingDataSource dataSource = new AIRSv2_SoundingDataSource(files);
-          return dataSource;
-        }
-        if (files[0].getName().startsWith("IASI") && files[0].getName().contains("atm_prof_rtv") && files[0].getName().endsWith(".h5")) {
-          AtmSoundingDataSource dataSource = new IASI_SoundingDataSource(files);
-          return dataSource;
-        }
-        if (files[0].getName().startsWith("CrIS") && files[0].getName().contains("atm_prof_rtv")) {
-          CrIS_SoundingDataSource dataSource = new CrIS_SoundingDataSource(files);
-          return dataSource;
-        }
-        if (name.startsWith("MOD06") || name.startsWith("MYD06") || name.contains("mod06") ||
-            name.startsWith("MOD04") || name.startsWith("MYD04") || name.contains("mod04") ||
-            name.startsWith("MOD35") || name.startsWith("MYD35") || name.contains("mod35") ||
-            name.contains("mod14") || name.startsWith("MOD14") || name.startsWith("MYD14") ||
-            name.contains("mod28") || name.startsWith("MOD28") || name.startsWith("MYD28") ||
-            name.startsWith("geocatL2_OT") || name.contains("seadas") || name.contains("SEADAS_npp") || name.contains("SEADAS_modis")) 
-        {
-            MultiDimensionDataSource dataSource = new MultiDimensionDataSource(new DataSourceDescriptor(), Misc.newList(fileNames), null);
-            dataSource.doMakeDataChoices();
-            return dataSource;
-        }
-        if (files[0].getName().startsWith("viirs_l1b-m") || files[0].getName().startsWith("viirs_geo-m")) {
-           SIPS_VIIRS_SVM dataSource = new SIPS_VIIRS_SVM(files);
-           return dataSource;
-        }
-        if (files[0].getName().startsWith("VL1BM")) {
-           SIPS_VIIRS_SVM dataSource = new SIPS_VIIRS_SVM(files);
-           return dataSource;
-        }        
-        if (files[0].getName().startsWith("viirs_l1b-i") || files[0].getName().startsWith("viirs_geo-i")) {
-           SIPS_VIIRS_SVI dataSource = new SIPS_VIIRS_SVI(files);
-           return dataSource;
-        } 
-        if (files[0].getName().startsWith("VL1BI")) {
-           SIPS_VIIRS_SVI dataSource = new SIPS_VIIRS_SVI(files);
-           return dataSource;
-        }  
-        if (files[0].getName().startsWith("VL1BD")) {
-           SIPS_VIIRS_DNB dataSource = new SIPS_VIIRS_DNB(files);
-           return dataSource;
-        }                
-        else {
-          ArrayList<String> sortedList = null;
-          try {
-              sortedList = DataSource.getTimeSortedFilenameList(Misc.newList(files), null);
-          } catch (Exception e) {
-              e.printStackTrace();
-          }
-          MultiSpectralDataSource dataSource = new MultiSpectralDataSource(new DataSourceDescriptor(), sortedList, null);
-          dataSource.doMakeDataChoices();
-          return dataSource;
-        }
-      } catch (VisADException e) {
-          e.printStackTrace();
-      }
-      return null;
-   }
-
-
-   public static DataSourceImpl createDataSource(File dir, Class ds) {
-     DataSourceImpl dataSource = null;
-     try {
-        dataSource = (DataSourceImpl) ds.getConstructor(new Class[] {File.class}).newInstance(dir);
-     }
-     catch (Exception e) {
-        e.printStackTrace();
-     }
-     return dataSource;
-   }
-
-
-   public static float getNadirResolution(DataSourceImpl datasource, DataChoice choice) throws Exception {
-     if (datasource instanceof VIIRSDataSource) {
-       return ((VIIRSDataSource)datasource).getNadirResolution(choice);
-     }
-     else if (datasource instanceof SIPS_VIIRS_DataSource) {
-        return ((SIPS_VIIRS_DataSource)datasource).getNadirResolution();
-     }
-     else if (datasource instanceof AHIDirectory) {
-       return ((AHIDirectory)datasource).getNadirResolution(choice);        
-     }
-     else if (datasource instanceof MultiSpectralDataSource) {
-       //datasource.getNadirResolution() TODO support this in MultiSpectralDataSource
-       File file = new File(((MultiSpectralDataSource)datasource).getDatasetName());
-       return getNadirResolution(file);
-     }
-     else if (datasource instanceof MultiDimensionDataSource) {
-       File file = new File(((MultiDimensionDataSource)datasource).getDatasetName());
-       String name = file.getName();
-       if (name.startsWith("MOD06") || name.startsWith("MYD06") || name.contains("mod06")) {
-          String pname = choice.getName();
-          if (pname.equals("Cloud_Optical_Thickness") || pname.equals("Cloud_Effective_Radius") || pname.equals("Cloud_Water_Path")) {
-             return 1020f;
-          }
-       }
-       else if (name.contains("mod14") || name.contains("mod28") || name.contains("mod35")) {
-           return 1020f;
-       }
-       else if (name.contains("seadas") || name.startsWith("SEADAS_modis")) {
-          return 1020f;
-       }
-       else if(name.contains("SEADAS_npp")) {
-          return 770f;
-       }
-       else if (name.contains("mod04")) {
-          return 10100f;
-       }
-       else if (name.contains("mod04_3k")) {
-          return 3060f;
-       }
-       else if (name.startsWith("geocatL2_OT")) {
-          return 1020f;
-       }
-           
-       return 5000f;
-     }
-     else {
-       throw new Exception("Datasource not identified");
-     }
-   }
-
-   public static int getReprojectionStrategy(DataSourceImpl datasource, DataChoice choice) {
-     if (datasource instanceof VIIRSDataSource) {
-       return 0;
-     }
-     else {
-       return 0;
-     }
-   }
-
-   public static boolean getDoReproject(DataSourceImpl datasource, DataChoice choice) {
-      if (datasource instanceof GEOSDataSource || 
-          datasource instanceof AHIDirectory)
-      {
-         return false;
-      }
-      String name = choice.getName();
-
-      if (name.equals("Sea_Surface_Temperature")) {
-         return true;
-      }
-      if (name.equals("Cloud_Mask")) {
-         return true;   
-      }
-      if (name.equals("Cloud_Phase_Infrared")) {
-         return true;
-      }
-      if (name.equals("fire_mask")) {
-         return true;
-      }
-      if (name.equals("Cloud_Top_Temperature")) {
-         return true;
-      }
-      if (name.equals("Cloud_Top_Pressure")) {
-         return true;
-      }
-      if (name.equals("Cloud_Fraction")) {
-         return true;
-      }
-      if (name.equals("Optical_Depth_Land_And_Ocean")) {
-         return true;
-      }
-
-      return true;
-   }
    
-   public static boolean getDoFilter(DataChoice choice) {
+   public DataSource() {
+   }
+
+
+   public boolean getDoFilter(DataChoice choice) {
        String name = choice.getName();
        
       if (name.equals("Cloud_Mask")) {
@@ -281,7 +35,7 @@ public class DataSource {
       return true;
    }
    
-   public static boolean getOverlayAsMask(DataChoice choice) {
+   public boolean getOverlayAsMask(DataChoice choice) {
       String name = choice.getName();
       
       if (name.equals("fire_mask")) {
@@ -293,152 +47,8 @@ public class DataSource {
       return false;
    }
 
-   public static boolean getReduceBowtie(DataSourceImpl datasource, DataChoice choice) {
-      if (datasource instanceof VIIRSDataSource || datasource instanceof SIPS_VIIRS_DataSource) {
-         return false;
-      }
-      else if (datasource instanceof MultiDimensionDataSource) {
-         String str = ((MultiDimensionDataSource)datasource).getDatasetName();
-         if (str.contains("_npp_")) {
-            return false;
-         }
-         return true;
-      }
-      else {
-         return true;
-      }
-   }
 
-   public static String getSensorName(DataSourceImpl datasource, DataChoice choice) {
-       if (datasource instanceof MultiSpectralDataSource) {
-          File file = new File(((MultiSpectralDataSource)datasource).getDatasetName());
-          return getSensorNameFromFilename(file);
-       }
-       else if (datasource instanceof MultiDimensionDataSource) {
-          File file = new File(((MultiDimensionDataSource)datasource).getDatasetName());
-          return getSensorNameFromFilename(file);
-       }
-       return null;
-   }
-
-   public static String getSensorNameFromFilename(File file) {
-     String name = file.getName();
-
-     if (name.startsWith("MYD021KM")) return new String("MODIS_1KM");
-     if (name.startsWith("MOD021KM")) return new String("MODIS_1KM");
-     if (name.startsWith("MYD02HKM")) return new String("MODIS_HKM");
-     if (name.startsWith("MOD02HKM")) return new String("MODIS_HKM");
-     if (name.startsWith("MYD02QKM")) return new String("MODIS_QKM");
-     if (name.startsWith("MOD02QKM")) return new String("MODIS_QKM");
-     if (name.startsWith("a1.") || name.startsWith("t1.")) {
-        if (name.contains("1000m")) return new String("MODIS_1KM");
-        if (name.contains("500m")) return new String("MODIS_HKM");
-        if (name.contains("250m")) return new String("MODIS_QKM");
-     }
-     if (name.contains("MERSI_0250M_L1B")) return new String("MERSI_QKM");
-     if (name.contains("MERSI_1000M_L1B")) return new String("MERSI_1KM");
-     if (name.startsWith("FY3C_MERSI") && name.contains("1000M")) return new String("MERSI_1KM");
-     return null;
-   }
-
-   public static float getNadirResolution(File file) {
-     String name = file.getName();
-
-     if (name.startsWith("SVM")) return 770.0f;
-     if (name.startsWith("SVDNB")) return 770.0f;
-     if (name.startsWith("SVI")) return 390.0f;
-     if (name.startsWith("MYD021KM")) return 1020.0f;
-     if (name.startsWith("MOD021KM")) return 1020.0f;
-     if (name.startsWith("MYD02HKM")) return 510.0f;
-     if (name.startsWith("MOD02HKM")) return 510.0f;
-     if (name.startsWith("MYD02QKM")) return 260.0f;
-     if (name.startsWith("MOD02QKM")) return 260.0f;
-     if (name.startsWith("a1.") || name.startsWith("t1.")) {
-        if (name.contains("1000m")) return 1020.0f;
-        if (name.contains("500m")) return 510.0f;
-        if (name.contains("250m")) return 260.0f;
-     }
-     if (name.contains("MERSI_0250M_L1B")) return 260.0f;
-     //return 1000.0f;
-     return 770.0f;
-   }
-
-   public static ColorTable getDefaultColorTable(DataSourceImpl datasource, DataChoice choice) {
-
-     ColorTable clrTbl = Hydra.grayTable;
-     String name = choice.getName();
-
-     if (datasource instanceof MultiSpectralDataSource) {
-       if (name.contains("Emissive")) {
-         clrTbl = Hydra.invGrayTable;
-       }
-     }
-     else if (datasource instanceof VIIRSDataSource || datasource instanceof SIPS_VIIRS_DataSource) {
-       name = choice.getName();
-       if ( name.equals("I4") || name.equals("I04") || name.equals("M12") || name.equals("M13") || name.equals("M14") || name.equals("M15") || name.equals("I5") || name.equals("I05") || name.equals("M16") ) {
-         clrTbl = Hydra.invGrayTable;
-       }
-     }
-     else if (datasource instanceof AHIDirectory) {
-       name = choice.getName();
-       if ( name.equals("B07") || name.equals("B08") || name.equals("B09") || name.equals("B10") || name.equals("B11") || name.equals("B12") || name.equals("B13") || name.equals("B14") || name.equals("B15") || name.equals("B16") ) {
-         clrTbl = Hydra.invGrayTable;
-       }
-     }
-     if (name.equals("Cloud_Mask")) {
-        float[][] palette = new float[][] {{0.9f,0.9f,0.0f,0.0f},
-                                           {0.9f,0.0f,0.9f,0.9f},
-                                           {0.9f,0.0f,0.9f,0.0f},
-                                           {0.97f,0.97f,0.98f,0.98f}};
-        clrTbl = new ColorTable();
-        clrTbl.setTable(palette);
-     }
-     if (name.equals("Cloud_Phase_Infrared")) {
-        float[][] palette = new float[][] {{0.0f,0.0f,1.0f,0.8f,0.0f,0.0f,0.0f},
-                                           {0.0f,0.0f,0.5f,0.8f,0.8f,0.8f,0.8f},
-                                           {0.0f,0.8f,0.5f,0.0f,0.0f,0.0f,0.0f},
-                                           {0.00f,0.97f,0.98f,0.98f,0.98f,0.98f,0.98f}};
-        clrTbl = new ColorTable();
-        clrTbl.setTable(palette);
-     }
-     if (name.equals("fire_mask")) {
-        float[][] palette = new float[][] {{0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,1.0f,1.0f,1.0f},
-                                           {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,1.0f,0.58f,0.0f},
-                                           {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f},
-                                           {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.98f,0.98f,0.98f}};
-        clrTbl = new ColorTable();
-        clrTbl.setTable(palette);
-     }
-     if (name.equals("Cloud_Top_Temperature")) {
-        clrTbl = Hydra.rainbow;
-     }
-     if (name.equals("Cloud_Top_Pressure")) {
-        clrTbl = Hydra.rainbow;
-     }
-     if (name.equals("Sea_Surface_Temperature")) {
-        clrTbl = Hydra.rainbow;
-     }
-     if (name.equals("radiances")) {
-        clrTbl = Hydra.invGrayTable;
-     }
-     if (name.equals("RainRate")) {
-        clrTbl = Hydra.rainbow;
-     }
-     if (name.equals("TPW")) {
-        clrTbl = Hydra.rainbow;
-     }
-     if (name.equals("brightness_temp")) {
-        clrTbl = Hydra.invGrayTable;
-     }
-     if (name.equals("albedo")) {
-        clrTbl = Hydra.grayTable;
-     }
-
-
-     return clrTbl;
-   }
-
-   public static Range getDefaultColorRange(DataSourceImpl datasource, DataChoice choice) {
+   public Range getDefaultColorRange(DataChoice choice) {
       String name = choice.getName();
 
       Range rng = null;
@@ -456,45 +66,6 @@ public class DataSource {
       return rng; 
    }
 
-
-   // TODO: Replace these at some point
-
-   public static String getDescription(DataSourceImpl dataSource) {
-     if (dataSource instanceof VIIRSDataSource) {
-       return ((VIIRSDataSource)dataSource).getDescription();
-     }
-     else if (dataSource instanceof SIPS_VIIRS_DataSource) {
-        return ((SIPS_VIIRS_DataSource)dataSource).getDescription();
-     }
-     else if (dataSource instanceof AHIDirectory) {
-       return ((AHIDirectory)dataSource).getDescription();
-     }
-     return null;
-   }
-
-   public static String getDescription(DataSourceImpl dataSource, DataChoice dataChoice) {
-     if (dataSource instanceof VIIRSDataSource) {
-       return ((VIIRSDataSource)dataSource).getDescription(dataChoice);
-     }
-     else if (dataSource instanceof SIPS_VIIRS_DataSource) {
-        return ((SIPS_VIIRS_DataSource)dataSource).getDescription(dataChoice);
-     }
-     return null;
-   }
-
-
-   public static String getDateTimeStamp(DataSourceImpl dataSource) {
-     if (dataSource instanceof VIIRSDataSource) {
-       return ((VIIRSDataSource)dataSource).getDateTimeStamp();
-     }
-     else if (dataSource instanceof SIPS_VIIRS_DataSource) {
-        return ((SIPS_VIIRS_DataSource)dataSource).getDateTimeStamp();
-     }
-     else if (dataSource instanceof AHIDirectory) {
-       return ((AHIDirectory)dataSource).getDateTimeStamp();       
-     }
-     return null;
-   }
 
    public static String getDescriptionFromFilename(String filename) {
      String desc = null;
@@ -574,33 +145,28 @@ public class DataSource {
      else if (filename.startsWith("geocatL2_OT")) {
        desc = "OT";
      }
+     
      return desc;
    }
 
-   public static long getMillisecondsSinceTheEpoch(String filename, String platform) throws Exception {
-      return 0;
-   }
-
-   public static String getDateTimeStampFromFilename(String filename, String platform) {
-      long millis = getSecondsSinceEpoch(filename, platform);
+   public static String getDateTimeStampFromFilename(String filename) {
+      long millis = getSecondsSinceEpoch(filename);
       return makeDateTimeStamp(millis);
    }
    
-   public static long getSecondsSinceEpoch(String filename, String platform) {
+   public static long getSecondsSinceEpoch(String filename) {
      long millis = 0;
      Date datetime = null;
      
      try {
-        if (platform != null) { 
-           if (platform.equals("Suomi") || filename.contains("_npp_d")) {
-              int idx = filename.indexOf("_npp_d");
-              idx += 6;
-              String str = filename.substring(idx, idx+16);
-              SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd'_t'HHmmss");
-              datetime = sdf.parse(str);
-           }
+        if (filename.contains("_npp_d")) {
+           int idx = filename.indexOf("_npp_d");
+           idx += 6;
+           String str = filename.substring(idx, idx+16);
+           SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd'_t'HHmmss");
+           datetime = sdf.parse(str);
         }
-        if (filename.startsWith("MOD") || filename.startsWith("MYD")) {
+        else if (filename.startsWith("MOD") || filename.startsWith("MYD")) {
            String yyyyddd = filename.substring(10,17);
            String hhmm = filename.substring(18,22);
            SimpleDateFormat sdf = new SimpleDateFormat("yyyyDDDHHmm");
@@ -765,16 +331,6 @@ public class DataSource {
      return time;
   }
   
-  public static String getDateTimeStampFromDataSource(DataSourceImpl dataSource) {
-     String dateTime = null;
-
-     if (dataSource instanceof MultiSpectralDataSource) {
-        dateTime = ((MultiSpectralDataSource)dataSource).getDateTime();
-     }
-     
-     return dateTime;
-  }
-
   public static String makeDateTimeStamp(Date date) {
      return makeDateTimeStamp(date.getTime());
   }
@@ -785,17 +341,17 @@ public class DataSource {
      return timeStr;
   }
   
-  public static ArrayList<File> getTimeSortedFileList(List<File> fileList, String platform) throws Exception {
-     return getTimeSortedFileList((File[]) fileList.toArray(new File[0]), platform);
+  public static ArrayList<File> getTimeSortedFileList(List<File> fileList) throws Exception {
+     return getTimeSortedFileList((File[]) fileList.toArray(new File[0]));
   }
     
-  public static ArrayList<File> getTimeSortedFileList(File[] fileList, String platform) throws Exception {
+  public static ArrayList<File> getTimeSortedFileList(File[] fileList) throws Exception {
      int numFiles = fileList.length;
      double[] times = new double[numFiles];
      for (int k=0; k<numFiles; k++) {
         File file = fileList[k];
         String name = file.getName();
-        times[k] = (double) DataSource.getSecondsSinceEpoch(name, platform);
+        times[k] = (double) DataSource.getSecondsSinceEpoch(name);
      }
 
      int[] indexes = QuickSort.sort(times);
@@ -808,11 +364,11 @@ public class DataSource {
      return sortedList;
   }
   
-  public static ArrayList<String> getTimeSortedFilenameList(List<File> fileList, String platform) throws Exception {
-     return getTimeSortedFilenameList((File[]) fileList.toArray(new File[0]), platform);
+  public static ArrayList<String> getTimeSortedFilenameList(List<File> fileList) throws Exception {
+     return getTimeSortedFilenameList((File[]) fileList.toArray(new File[0]));
   }
   
-  public static ArrayList<String> getTimeSortedFilenameList(File[] fileList, String platform) throws Exception {
+  public static ArrayList<String> getTimeSortedFilenameList(File[] fileList) throws Exception {
 
       int numFiles = fileList.length;
       String[] filenames = new String[numFiles];
@@ -820,7 +376,7 @@ public class DataSource {
       for (int k=0; k<numFiles; k++) {
          File file = fileList[k];
          String name = file.getName();
-         times[k] = (double) DataSource.getSecondsSinceEpoch(name, platform);
+         times[k] = (double) DataSource.getSecondsSinceEpoch(name);
          filenames[k] = file.getAbsolutePath();
       }
 
@@ -832,20 +388,120 @@ public class DataSource {
       }
 
       return sortedList;
-   }
-
-  public static int getDefaultChoice(DataSourceImpl dataSource, java.util.List list) {
-     int idx = 0;
-     Object[] choices = list.toArray();
-     if (dataSource instanceof VIIRSDataSource) {
-        for (int k=0; k < choices.length; k++) {
-           if (((DataChoice)choices[k]).getName().contains("M15")) {
-              idx = k;
-              break;
-           }
-        }
-     }
-     return idx;
+  }
+  
+  public float getNadirResolution(DataChoice choice) throws Exception {
+     return 5000f;
   }
 
+  public int getDefaultChoice() {
+     return 0;
+  }
+  
+  public List getDataChoices() {
+     return null;
+  }
+  
+  public String getDateTimeStamp() {
+     return null;
+  }
+  
+  public String getDescription() {
+     return null;
+  }
+  
+  public String getDescription(DataChoice choice) {
+     return null;
+  }
+  
+  public String getSensorName(DataChoice choice) {
+     return null;
+  }
+  
+  public boolean getDoReproject(DataChoice choice) {
+     return true;
+  }
+  
+  public boolean getReduceBowtie(DataChoice choice) {
+     return false;
+  }
+  
+  public ColorTable getDefaultColorTable(DataChoice choice) {
+     ColorTable clrTbl = Hydra.grayTable;
+     String name = choice.getName();
+     
+     if (name.contains("Emissive")) {
+        clrTbl = Hydra.invGrayTable;
+     }
+     else if (name.contains("Cloud_Mask")) {
+        float[][] palette = new float[][] {{0.9f,0.9f,0.0f,0.0f},
+                                           {0.9f,0.0f,0.9f,0.9f},
+                                           {0.9f,0.0f,0.9f,0.0f},
+                                           {0.97f,0.97f,0.98f,0.98f}};
+        clrTbl = new ColorTable();
+        clrTbl.setTable(palette);
+     }
+     else if (name.contains("Cloud_Phase_Infrared")) {
+        float[][] palette = new float[][] {{0.0f,0.0f,1.0f,0.8f,0.0f,0.0f,0.0f},
+                                           {0.0f,0.0f,0.5f,0.8f,0.8f,0.8f,0.8f},
+                                           {0.0f,0.8f,0.5f,0.0f,0.0f,0.0f,0.0f},
+                                           {0.00f,0.97f,0.98f,0.98f,0.98f,0.98f,0.98f}};
+        clrTbl = new ColorTable();
+        clrTbl.setTable(palette);
+     }
+     else if (name.contains("fire_mask")) {
+        float[][] palette = new float[][] {{0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,1.0f,1.0f,1.0f},
+                                           {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,1.0f,0.58f,0.0f},
+                                           {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f},
+                                           {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.98f,0.98f,0.98f}};
+        clrTbl = new ColorTable();
+        clrTbl.setTable(palette);
+     }
+     else if (name.contains("Cloud_Top_Temperature")) {
+        clrTbl = Hydra.rainbow;
+     }
+     else if (name.contains("Cloud_Top_Pressure")) {
+        clrTbl = Hydra.rainbow;
+     }
+     else if (name.contains("Sea_Surface_Temperature")) {
+        clrTbl = Hydra.rainbow;
+     }
+     else if (name.contains("radiances")) {
+        clrTbl = Hydra.invGrayTable;
+     }
+     else if (name.contains("RainRate")) {
+        clrTbl = Hydra.rainbow;
+     }
+     else if (name.contains("TPW")) {
+        clrTbl = Hydra.rainbow;
+     }
+     else if (name.contains("brightness_temp")) {
+        clrTbl = Hydra.invGrayTable;
+     }
+     else if (name.contains("albedo")) {
+        clrTbl = Hydra.grayTable;
+     }
+     
+     return clrTbl;
+  }
+  
+  public boolean isAtmRetrieval() {
+     return false;
+  }
+  
+  public boolean isSounder() {
+     return false;
+  }
+  
+  public boolean isImager() {
+     return true;
+  }
+  
+  public Data getData(DataChoice dataChoice, DataSelection dataSelection) throws VisADException, RemoteException {
+     return null;
+  }
+  
+  public Data getData(DataChoice dataChoice) throws VisADException, RemoteException {
+     return getData(dataChoice, null);
+  }
 }

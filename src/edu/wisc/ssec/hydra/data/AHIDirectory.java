@@ -1,28 +1,24 @@
 package edu.wisc.ssec.hydra.data;
 
-import edu.wisc.ssec.adapter.MultiDimensionSubset;
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
+import edu.wisc.ssec.hydra.Hydra;
+import edu.wisc.ssec.hydra.data.DataChoice;
+import edu.wisc.ssec.hydra.data.DataGroup;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.ArrayList;
-import java.lang.Math;
 import visad.VisADException;
 import visad.Data;
 import visad.FlatField;
-import visad.QuickSort;
 import java.rmi.RemoteException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import ucar.unidata.util.ColorTable;
 
 
-public class AHIDirectory extends DataSourceImpl {
+public class AHIDirectory extends DataSource {
 
 
    public static float[] nadirResolution = new float[] {
@@ -52,18 +48,20 @@ public class AHIDirectory extends DataSourceImpl {
 
    String dateTimeStamp = null;
    
-   List catHKM = DataCategory.parseCategories("HKM;IMAGE");
-   List cat1KM = DataCategory.parseCategories("1KM;IMAGE");
-   List cat2KM = DataCategory.parseCategories("2KM;IMAGE");
+   DataGroup catHKM = new DataGroup("HKM");
+   DataGroup cat1KM = new DataGroup("1KM");
+   DataGroup cat2KM = new DataGroup("2KM");
+   
    
    double default_stride = 10;
+   
+   private ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
 
    public AHIDirectory(File directory) {
      this(directory.listFiles());
    }
 
    public AHIDirectory(File[] files) {
-      super(new DataSourceDescriptor(), "AHI", "AHI", new Hashtable());
 
       int numFiles = files.length;
       int numBands = bandNames.length;
@@ -110,7 +108,7 @@ public class AHIDirectory extends DataSourceImpl {
             }
           }
           
-          List cat = null;
+          DataGroup cat = null;
           if (k==0 || k==1 || k==3) {
              cat = cat1KM;
              default_stride = 20;
@@ -126,7 +124,7 @@ public class AHIDirectory extends DataSourceImpl {
 
           GEOSDataSource datasource = null;
           try {
-            datasource = new GEOSDataSource(fileList.get(0).getPath(), default_stride);
+            datasource = new GEOSDataSource(fileList.get(0), default_stride);
             bandIDtoDataSource.put(bandNames[k], datasource);
           }
           catch (Exception e) {
@@ -155,10 +153,9 @@ public class AHIDirectory extends DataSourceImpl {
    }
 
 
-   public void doMakeDataChoice(String name, int bandIdx, int idx, DataChoice targetDataChoice, List category) {
-     Hashtable subset = targetDataChoice.getProperties();
-     DataChoice dataChoice = new DirectDataChoice(this, idx, name, name, category, subset);
-     dataChoice.setProperties(subset);
+   public void doMakeDataChoice(String name, int bandIdx, int idx, DataChoice targetDataChoice, DataGroup category) {
+     DataChoice dataChoice = new DataChoice(this, name, category);
+     dataChoice.setDataSelection(targetDataChoice.getDataSelection());
      addDataChoice(dataChoice);
    }
 
@@ -208,17 +205,31 @@ public class AHIDirectory extends DataSourceImpl {
    public String getDateTimeStamp() {
      return dateTimeStamp;
    }
-
-    public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
+   
+   public boolean getDoReproject(DataChoice choice) {
+     return false;
+   }
+   
+   public ColorTable getDefaultColorTable(DataChoice choice) {
+      ColorTable clrTbl = Hydra.grayTable;
+      String name = choice.getName();
+      if ( name.equals("B07") || name.equals("B08") || name.equals("B09") || name.equals("B10") || name.equals("B11") || name.equals("B12") || name.equals("B13") || name.equals("B14") || name.equals("B15") || name.equals("B16") ) {
+        clrTbl = Hydra.invGrayTable;
+      }
+      
+      return clrTbl;
+   }
+   
+    public void addDataChoice(DataChoice dataChoice) {
+      myDataChoices.add(dataChoice); 
+    }
+  
+    public List getDataChoices() {
+      return myDataChoices; 
     }
 
-
-    protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException 
+    public Data getData(DataChoice dataChoice, DataSelection dataSelection)
+         throws VisADException, RemoteException 
     {
        String name = dataChoice.getName();
        name = bandNameToBandID.get(name);
@@ -234,9 +245,9 @@ public class AHIDirectory extends DataSourceImpl {
              targetDataChoice = choice;
           }
        }
-      
-       targetDataChoice.setProperties(dataChoice.getProperties());
-       Data data = datasource.getData(targetDataChoice, null, null, null);
+       
+       targetDataChoice.setDataSelection(dataChoice.getDataSelection());      
+       Data data = datasource.getData(targetDataChoice);
        if (targetDataChoice.getName().equals("brightness_temp")) {
           float[][] rngVals = ((FlatField)data).getFloats(false);
           for (int k=0; k<rngVals[0].length; k++) {

@@ -306,7 +306,7 @@ public abstract class MultiDimensionAdapter {
      return metadata;
    }
 
-   String getArrayName() {
+   public String getArrayName() {
      return arrayName;
    }
 

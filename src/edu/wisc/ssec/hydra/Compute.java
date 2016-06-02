@@ -1,17 +1,16 @@
 package edu.wisc.ssec.hydra;
 
-import ucar.unidata.data.DataSelection;
+import edu.wisc.ssec.adapter.MultiDimensionSubset;
+import edu.wisc.ssec.hydra.data.DataSelection;
 
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JButton;
 import javax.swing.JPanel;
-import javax.swing.SwingWorker;
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
-import java.awt.event.WindowListener;
 import java.awt.event.WindowEvent;
 import java.awt.Cursor;
 
@@ -137,7 +136,7 @@ public class Compute implements SelectionListener {
          operand.selection = e.getSelection();
          operand.dataChoice = e.getSelection().getSelectedDataChoice();
 
-         DataSelection dataSelection = new DataSelection();
+         DataSelection dataSelection = new MultiDimensionSubset();
          operand.selection.applyToDataSelection(dataSelection);
          operand.dataSelection = dataSelection;
          operand.compute = null;

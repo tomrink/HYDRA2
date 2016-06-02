@@ -1,14 +1,9 @@
 package edu.wisc.ssec.hydra.data;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
+import edu.wisc.ssec.hydra.Hydra;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.ArrayList;
 import java.lang.Math;
@@ -16,9 +11,10 @@ import visad.VisADException;
 import visad.Data;
 import visad.FlatField;
 import java.rmi.RemoteException;
+import ucar.unidata.util.ColorTable;
 
 
-public class VIIRSDataSource extends DataSourceImpl {
+public class VIIRSDataSource extends DataSource {
 
 
    public static String[] bands =  new String[] {
@@ -53,13 +49,15 @@ public class VIIRSDataSource extends DataSourceImpl {
    HashMap<String, ArrayList> bandIDtoFileList = new HashMap<String, ArrayList>();
 
    HashMap<String, NOAA_VIIRS_DataSource> bandIDtoDataSource = new HashMap<String, NOAA_VIIRS_DataSource>();
+   
+   private ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
 
    HashMap<String, String> bandIDtoBandName = new HashMap<String, String>();
    HashMap<String, String> bandNameToBandID = new HashMap<String, String>();
 
-   List catI = DataCategory.parseCategories("I-Band;IMAGE");
-   List catM = DataCategory.parseCategories("M-Band;IMAGE");
-   List catDNB = DataCategory.parseCategories("DNB-Band;IMAGE");
+   DataGroup catI = new DataGroup("I-Band");
+   DataGroup catM = new DataGroup("M-Band");
+   DataGroup catDNB = new DataGroup("DNB-Band");
 
    String dateTimeStamp = null;
 
@@ -68,7 +66,6 @@ public class VIIRSDataSource extends DataSourceImpl {
    }
 
    public VIIRSDataSource(File[] files) {
-      super(new DataSourceDescriptor(), "VIIRS", "VIIRS", new Hashtable());
 
       int numFiles = files.length;
       int numBands = bands.length;
@@ -101,12 +98,12 @@ public class VIIRSDataSource extends DataSourceImpl {
         if (!fileList.isEmpty()) {
 
           if (dateTimeStamp == null) {
-            dateTimeStamp = DataSource.getDateTimeStampFromFilename((String)fileList.get(0).getName(), "Suomi");
+            dateTimeStamp = DataSource.getDateTimeStampFromFilename((String)fileList.get(0).getName());
           }
 
           NOAA_VIIRS_DataSource datasource = null;
           try {
-            ArrayList<String> sortedList = DataSource.getTimeSortedFilenameList(fileList, "Suomi");
+            ArrayList<String> sortedList = DataSource.getTimeSortedFilenameList(fileList);
             File[] tmpFiles = new File[sortedList.size()];
             for (int i=0; i<tmpFiles.length; i++) {
                tmpFiles[i] = new File(sortedList.get(i));
@@ -134,7 +131,7 @@ public class VIIRSDataSource extends DataSourceImpl {
             }
           }
 
-          List cat = (k <= 4) ? catI : catM;
+          DataGroup cat = (k <= 4) ? catI : catM;
           if (k == 21) cat = catDNB;
 
           doMakeDataChoice(bandNames[k], k, num, targetDataChoice, cat);
@@ -145,11 +142,15 @@ public class VIIRSDataSource extends DataSourceImpl {
 
    }
 
-   public void doMakeDataChoice(String name, int bandIdx, int idx, DataChoice targetDataChoice, List category) {
-     Hashtable subset = targetDataChoice.getProperties();
-     DataChoice dataChoice = new DirectDataChoice(this, idx, name, name, category, subset);
-     dataChoice.setProperties(subset);
-     addDataChoice(dataChoice);
+   public void doMakeDataChoice(String name, int bandIdx, int idx, DataChoice targetDataChoice, DataGroup category) {
+     DataChoice dataChoice = new DataChoice(this, name, category);
+     DataSelection dataSel = targetDataChoice.getDataSelection();
+     dataChoice.setDataSelection(dataSel);
+     myDataChoices.add(dataChoice);
+   }
+   
+   public List getDataChoices() {
+      return myDataChoices;
    }
 
    public float getNadirResolution(DataChoice choice) throws Exception {
@@ -198,17 +199,30 @@ public class VIIRSDataSource extends DataSourceImpl {
    public String getDateTimeStamp() {
      return dateTimeStamp;
    }
+   
+   public int getDefaultChoice() {
+      int idx = 0;
+      Object[] choices = myDataChoices.toArray();
+      for (int k=0; k < choices.length; k++) {
+         if (((DataChoice)choices[k]).getName().contains("M15")) {
+            idx = k;
+            break;
+         }
+      }
+      return idx;
+   }
+   
+   public ColorTable getDefaultColorTable(DataChoice choice) {
+      ColorTable clrTbl = Hydra.grayTable;
+      String name = choice.getName();     
+      if ( name.equals("I4") || name.equals("I04") || name.equals("M12") || name.equals("M13") || name.equals("M14") || name.equals("M15") || name.equals("I5") || name.equals("I05") || name.equals("M16") ) {
+        clrTbl = Hydra.invGrayTable;
+      }
+      return clrTbl;
+   }
 
-    public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
-    }
-
-
-    protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException 
+   public Data getData(DataChoice dataChoice, DataSelection dataSelection)
+            throws VisADException, RemoteException 
     {
        String name = dataChoice.getName();
        name = bandNameToBandID.get(name);
@@ -228,8 +242,9 @@ public class VIIRSDataSource extends DataSourceImpl {
           } 
        }
       
-       targetDataChoice.setProperties(dataChoice.getProperties());
-       Data data = datasource.getData(targetDataChoice, null, null, null);
+       targetDataChoice.setDataSelection(dataChoice.getDataSelection());
+       Data data = datasource.getData(targetDataChoice);
+       
        //-  post process for DNB: replace radiance with log10(radiance)
        if (dataChoice.getName().equals("DNB")) {
           float[][] rngVals = ((FlatField)data).getFloats(false);

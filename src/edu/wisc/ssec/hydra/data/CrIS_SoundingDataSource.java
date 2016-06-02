@@ -1,31 +1,14 @@
 package edu.wisc.ssec.hydra.data;
 
-import ucar.unidata.data.DataSourceImpl;
-import ucar.unidata.data.DirectDataChoice;
-import ucar.unidata.data.DataSourceDescriptor;
-import ucar.unidata.data.DataCategory;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.data.DataChoice;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.TreeSet;
-import edu.wisc.ssec.adapter.MultiSpectralDataSource;
 import edu.wisc.ssec.adapter.SwathAdapter;
-import edu.wisc.ssec.adapter.CrIS_SDR_SwathAdapter;
 import edu.wisc.ssec.adapter.AtmSoundingAdapter;
 import edu.wisc.ssec.adapter.SwathSoundingData;
 import edu.wisc.ssec.adapter.CrIS_SwathSoundingData;
 import edu.wisc.ssec.adapter.NetCDFFile;
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
 import edu.wisc.ssec.adapter.MultiDimensionReader;
-import edu.wisc.ssec.adapter.GranuleAggregation;
-import visad.VisADException;
-import visad.Data;
-import visad.FlatField;
-import java.rmi.RemoteException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -40,21 +23,6 @@ public class CrIS_SoundingDataSource extends AtmSoundingDataSource {
 
    public CrIS_SoundingDataSource(File[] files) {
       super(files);
-      /* not yet
-      try {
-         ArrayList<NetCDFFile> ncdfal = new ArrayList<NetCDFFile>();
-         TreeSet<String> pathToProducts = new TreeSet<String>();
-         ncdfal.add(new NetCDFFile(files[0].getAbsolutePath()));
-         ncdfal.add(new NetCDFFile(files[1].getAbsolutePath()));
-         pathToProducts.add("TAir");
-         //pathToProducts.add("H20MMR");
-         //pathToProducts.add("03VMR");
-         GranuleAggregation aggReader = new GranuleAggregation(ncdfal, pathToProducts, "Scan", "View");
-         init(aggReader);
-      } catch(Exception e) {
-        e.printStackTrace();
-      }
-      */
    }
 
    void init(File file) throws Exception {
@@ -73,10 +41,8 @@ public class CrIS_SoundingDataSource extends AtmSoundingDataSource {
                                    null, "missing_value", "CrIS_RTV");
       HashMap subset = dataTA.getDefaultSubset();
       DataSelection dataSel = new MultiDimensionSubset(subset);
-      Hashtable props = new Hashtable();
-      props.put(MultiDimensionSubset.key, dataSel);
-      DataChoice dataChoice = new DirectDataChoice(this, 0, "Temp", "Temp", null, props);
-      dataChoice.setProperties(props);
+      DataChoice dataChoice = new DataChoice(this, "Temp", null);
+      dataChoice.setDataSelection(dataSel);
       myDataChoices.add(dataChoice);
       mySoundingDatas.add(dataTA);
 
@@ -87,9 +53,8 @@ public class CrIS_SoundingDataSource extends AtmSoundingDataSource {
       dataWV.setDataRange(new float[] {0, 20});
       subset = dataWV.getDefaultSubset();
       dataSel = new MultiDimensionSubset(subset);
-      props = new Hashtable();
-      props.put(MultiDimensionSubset.key, dataSel);
-      dataChoice = new DirectDataChoice(this, 1, "WV", "WV", null, props);
+      dataChoice = new DataChoice(this, "WV", null);
+      dataChoice.setDataSelection(dataSel);
       myDataChoices.add(dataChoice);
       mySoundingDatas.add(dataWV);
 
@@ -100,9 +65,8 @@ public class CrIS_SoundingDataSource extends AtmSoundingDataSource {
       dataO3.setDataRange(new float[] {0, 20});
       subset = dataO3.getDefaultSubset();
       dataSel = new MultiDimensionSubset(subset);
-      props = new Hashtable();
-      props.put(MultiDimensionSubset.key, dataSel);
-      dataChoice = new DirectDataChoice(this, 2, "O3", "O3", null, props);
+      dataChoice = new DataChoice(this, "O3", null);
+      dataChoice.setDataSelection(dataSel);
       myDataChoices.add(dataChoice);
       mySoundingDatas.add(dataO3);
    }
@@ -175,24 +139,4 @@ public class CrIS_SoundingDataSource extends AtmSoundingDataSource {
      
      return dateTimeStamp;
    }
-
-    public synchronized Data getData(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException {
-       return this.getDataInner(dataChoice, category, dataSelection, requestProperties);
-    }
-
-
-    protected Data getDataInner(DataChoice dataChoice, DataCategory category,
-                                DataSelection dataSelection, Hashtable requestProperties)
-                                throws VisADException, RemoteException 
-    {
-      try {
-         data = getSwathSoundingData(dataChoice);
-         return data.getImage(data.getDefaultSubset());
-      } catch (Exception e) {
-         e.printStackTrace();
-      }
-      return null;
-    }
 }

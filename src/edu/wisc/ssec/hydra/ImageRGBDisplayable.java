@@ -1,23 +1,13 @@
 package edu.wisc.ssec.hydra;
 
-import ucar.visad.display.GridDisplayable;
 import ucar.visad.display.DisplayableData;
 import ucar.visad.display.ScalarMapSet;
 
 import ucar.unidata.data.grid.GridUtil;
 
-import ucar.unidata.util.Misc;
-
 import visad.*;
 
 import visad.bom.ImageRendererJ3D;
-import visad.java3d.DefaultRendererJ3D;
-
-import visad.java2d.*;
-import visad.java2d.DefaultRendererJ2D;
-
-import visad.java2d.DisplayRendererJ2D;
-
 
 import java.rmi.RemoteException;
 import visad.georef.EarthLocationTuple;
@@ -50,6 +40,8 @@ public class ImageRGBDisplayable extends DisplayableData {
     public EarthLocationTuple maxLoc;
     
     private String dateTimeStr = " ";
+    
+    private String description = " ";
 
     /**
      * Constructs from a name for the Displayable and the type of the

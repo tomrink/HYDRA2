@@ -460,11 +460,6 @@ public class MyColorScale implements PropertyChangeListener {
                 justification = TextControl.Justification.RIGHT;
             }
         }
-        //Misc.printArray("startn", startn);
-        //Misc.printArray("startp", startp);
-        //Misc.printArray("up", up);
-        //Misc.printArray("base", base);
-
 
         double   dist  =  // dist from the color bar in up direction
             (orient == HORIZONTAL_ORIENT)

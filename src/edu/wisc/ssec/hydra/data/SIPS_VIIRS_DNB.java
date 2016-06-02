@@ -46,7 +46,7 @@ public class SIPS_VIIRS_DNB extends SIPS_VIIRS_DataSource {
    
    }
    
-   public float getNadirResolution() {
+   public float getNadirResolution(DataChoice choice) {
       return 770f;
    }
 

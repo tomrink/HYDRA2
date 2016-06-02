@@ -1,34 +1,6 @@
-/*
- * This file is part of McIDAS-V
- *
- * Copyright 2007-2013
- * Space Science and Engineering Center (SSEC)
- * University of Wisconsin - Madison
- * 1225 W. Dayton Street, Madison, WI 53706, USA
- * http://www.ssec.wisc.edu/mcidas
- * 
- * All Rights Reserved
- * 
- * McIDAS-V is built on Unidata's IDV and SSEC's VisAD libraries, and
- * some McIDAS-V source code is based on IDV and VisAD source code.  
- * 
- * McIDAS-V is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- * 
- * McIDAS-V is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
- */
-
 package edu.wisc.ssec.adapter;
 
-import ucar.unidata.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataSelection;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -39,109 +11,66 @@ public class MultiDimensionSubset extends DataSelection {
 
   public static final MultiDimensionSubset key = new MultiDimensionSubset();
 
-  private double[][] coords = null;
-  private String[] keys = null;
+  private HashMap<String, double[]> coordsMap = new HashMap<String, double[]>();
 
   public MultiDimensionSubset() {
     super();
   }
 
-  public MultiDimensionSubset(HashMap subset) {
+  public MultiDimensionSubset(HashMap<String, double[]> subset) {
     super();
-    coords = new double[subset.size()][];
-    keys = new String[subset.size()];
-    Iterator iter = subset.keySet().iterator();
-    int cnt =0;
+    
+    Iterator<String> iter = subset.keySet().iterator();
     while (iter.hasNext()) {
-       String key = (String) iter.next();
-       keys[cnt] = key;
-       coords[cnt] = (double[]) subset.get(key);
-       cnt++;
+       String key = iter.next();
+       double[] coords = (double[]) subset.get(key);
+       coordsMap.put(key, coords);
     }
   }
 
-  public MultiDimensionSubset(double[][] coords, String[] keys) {
-    super();
-    /**
-    int num = keys.length;
-    this.keys = new String[num];
-    this.coords = new double[num][];
-    for (int i=0; i<num; i++) {
-      this.keys[i] = keys[i];
-      this.coords[i] = new double[coords[i].length];
-      for (int j=0; j<coords[i].length; j++) {
-        this.coords[i][j] = coords[i][j];
-      }
-    }
-    **/
-    this.coords = coords;
-    this.keys = keys;
-  }
 
   public HashMap getSubset() {
     HashMap hmap = new HashMap();
-    for (int k=0; k<keys.length; k++) {
-      double[] new_coords = new double[coords[k].length];
-      System.arraycopy(coords[k],0,new_coords,0,new_coords.length);
-      hmap.put(keys[k], new_coords);
+    Iterator iter = coordsMap.keySet().iterator();
+    while (iter.hasNext()) {
+      String key = (String) iter.next();
+      double[] coords = coordsMap.get(key);
+      double[] new_coords = new double[coords.length];
+      System.arraycopy(coords,0,new_coords,0,new_coords.length);
+      hmap.put(key, new_coords);
     }
     return hmap;
   }
 
-  public double[][] getCoords() {
-    return coords;
+  
+  public double[] getCoords(String key) {
+     double[] dblA = new double[3];
+     double[] tmp = coordsMap.get(key);
+     if (tmp == null) {
+        return null;
+     }
+     System.arraycopy(tmp, 0, dblA, 0, dblA.length);
+     return dblA;
   }
 
-  public void setCoords(double[][] coords) {
-    this.coords = coords;
-  }
-
-  public String[] getKeys() {
-    return keys;
-  }
-
-  public void setKeys(String[] keys) {
-    this.keys = keys;
+  
+  public void setCoords(String key, double[] rpl) {
+     coordsMap.put(key, rpl);
   }
 
   public MultiDimensionSubset clone() {
-    MultiDimensionSubset subset = new MultiDimensionSubset(coords, keys);
-    Hashtable props = new Hashtable();
-    props.put(MultiDimensionSubset.key, subset);
-    subset.setProperties(props);
+    MultiDimensionSubset subset = new MultiDimensionSubset(getSubset());
     return subset;
   }
 
   public String toString() {
-	  StringBuffer sb = new StringBuffer();
-	  if (keys != null) {
-		  for (int i = 0; i < keys.length; i++) {
-			  sb.append(new String(keys[i] + ": " + coords[i][0] + ", " + coords[i][1] + ", " + coords[i][2] + "\n"));
-		  }
-	  }
-	  return sb.toString();
-  }
-
-  /***
-  public boolean equals(Object obj) {
-    if (!(obj instanceof MultiDimensionSubset)) return false;
-    if ((keys == null) || (coords == null)) return false;
-
-    String[] keys_in = ((MultiDimensionSubset)obj).getKeys();
-    if ((keys_in == null) || (keys_in.length != keys.length)) return false;
-
-    for (int k=0; k<keys.length; k++) {
-      if (keys_in[k] != keys[k]) return false;
-    } 
-
-    double[][] coords_in = (double[][]) ((MultiDimensionSubset)obj).getCoords();
-    if ((coords_in == null) || (coords.length != coords_in.length)) return false;
-    for (int k=0; k<coords.length; k++) {
-      for (int t=0; t<coords[k].length; t++) {
-        if (coords[k][t] != coords_in[k][t]) return false;
-      }
+    StringBuffer sb = new StringBuffer();
+    Iterator<String> iter = coordsMap.keySet().iterator();
+    while (iter.hasNext()) {
+       String key = iter.next();
+       double[] coords = coordsMap.get(key);
+       sb.append(new String(key + ": " + coords[0] + ", " + coords[1] + ", " + coords[2] + "\n"));
     }
-    return true;
+    return sb.toString();
   }
-  ***/
 }

@@ -235,4 +235,8 @@ public class HIRS_xxx_L1_RangeProcessor extends RangeProcessor {
 
            return fltValues;
         }
+        
+        public float getWaveNumber() {
+           return gamma;
+        }
 }

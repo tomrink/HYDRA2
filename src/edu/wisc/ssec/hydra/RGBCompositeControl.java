@@ -15,23 +15,14 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 
 import visad.BaseColorControl;
-import visad.FieldImpl;
-import visad.FlatField;
-import visad.FunctionType;
 import visad.ScalarMap;
 import visad.ScalarMapControlEvent;
 import visad.ScalarMapEvent;
 import visad.ScalarMapListener;
 import visad.VisADException;
-import visad.Data;
-import visad.CoordinateSystem;
 
 import visad.georef.MapProjection;
 
-import ucar.unidata.data.DataChoice;
-import ucar.unidata.data.DataSelection;
-import ucar.unidata.util.ColorTable;
-import ucar.unidata.util.Range;
 import ucar.visad.display.DisplayMaster;
 
 
