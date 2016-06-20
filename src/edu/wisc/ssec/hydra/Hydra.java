@@ -229,7 +229,10 @@ public class Hydra {
    public String getSourceDescription() {
       return sourceDescription;
    }
-
+   
+   public Selection getSelection() {
+      return selection;
+   }
 
 //--------------------- DISPLAY -------------------------------------
 

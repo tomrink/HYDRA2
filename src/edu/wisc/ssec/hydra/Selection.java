@@ -20,5 +20,6 @@ public interface Selection {
    public abstract void addSelectionListener(SelectionListener listener);
 
    public abstract String getSelectedName();
-  
+   
+   public abstract void setSelected(Object obj);
 }

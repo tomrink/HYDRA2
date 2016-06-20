@@ -89,26 +89,8 @@ public class BasicSelection extends SelectionAdapter {
             if(selRow != -1) {
               if(e.getClickCount() == 1) {
                   DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
-
                   if (node == null) return;
-
-                  Object nodeInfo = node.getUserObject();
-                  if (node.isLeaf()) {
-                     LeafInfo leaf = (LeafInfo)nodeInfo;
-                     if (leaf.source == thisObj) {
-                        selectedIdx = leaf.index;
-                        lastSelectedLeafPath = selPath;
-                        updateSelectionDisplay(selectedIdx);
-                        //now done in updateSelectionDisplay to ensure select comps are ready
-                        //fireSelectionEvent();
-                     }
-                  }
-                  else {
-                     NodeInfo info = (NodeInfo)nodeInfo;
-                     if (info.source == thisObj) {
-                        previewSelects[defaultIdx].updateBoxSelector();
-                     }
-                  }
+                  setSelected(node);
                }
                else if(e.getClickCount() == 2) {
                   //pass
@@ -117,6 +99,25 @@ public class BasicSelection extends SelectionAdapter {
           }
         };
         tree.addMouseListener(ml);
+    }
+    
+    public void setSelected(Object obj) {
+       DefaultMutableTreeNode node = (DefaultMutableTreeNode) obj;
+       Object nodeInfo = node.getUserObject();
+       if (node.isLeaf()) {
+            LeafInfo leaf = (LeafInfo)nodeInfo;
+            if (leaf.source == this) {
+               selectedIdx = leaf.index;
+               lastSelectedLeafPath = new TreePath(node.getPath());
+               updateSelectionDisplay(selectedIdx);
+            }
+       }
+       else {
+            NodeInfo info = (NodeInfo)nodeInfo;
+            if (info.source == this) {
+               previewSelects[defaultIdx].updateBoxSelector();
+            }
+       }       
     }
 
     public void buildTreeSelectionComponent(String topName) {

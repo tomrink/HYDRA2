@@ -38,4 +38,7 @@ public class FormulaSelection extends SelectionAdapter {
    public Object getLastSelectedComp() {
       return null;
    }
+   
+   public void setSelected(Object obj) {
+   }
 }

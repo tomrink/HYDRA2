@@ -220,8 +220,8 @@ public class DataSource {
         else if (filename.startsWith("iasil1c") && filename.endsWith(".h5")) {
             int idx = 12;
             String yyyyMMdd = filename.substring(idx, idx+8);
+            idx += 8;
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
-            Date date = sdf.parse(yyyyMMdd);
             idx += 1;
             String HHmm = filename.substring(idx, idx+4);
             datetime = sdf.parse(yyyyMMdd.concat(HHmm));
@@ -247,6 +247,7 @@ public class DataSource {
         else if (filename.startsWith("hirsl1c") && filename.endsWith(".h5")) {
             int idx = 12;
             String yyyyMMdd = filename.substring(idx, idx+8);
+            idx += 8;
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
             idx += 1;
             String HHmm = filename.substring(idx, idx+4);
@@ -255,6 +256,7 @@ public class DataSource {
         else if (filename.startsWith("amsual1c") && filename.endsWith(".h5")) {
             int idx = 13;
             String yyyyMMdd = filename.substring(idx, idx+8);
+            idx += 8;
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
             idx += 1;
             String HHmm = filename.substring(idx, idx+4);
@@ -263,6 +265,7 @@ public class DataSource {
         else if (filename.startsWith("mhsl1c") && filename.endsWith(".h5")) {
             int idx = 11;
             String yyyyMMdd = filename.substring(idx, idx+8);
+            idx += 8;
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
             idx += 1;
             String HHmm = filename.substring(idx, idx+4);

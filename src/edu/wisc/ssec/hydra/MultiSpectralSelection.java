@@ -53,6 +53,9 @@ public class MultiSpectralSelection extends SelectionAdapter {
     private int dataSourceId;
 
     TreePath lastSelectedLeafPath = null;
+    
+    HashMap[] bandMapArray;
+    MultiSpectralData[] msdArray;
 
     public MultiSpectralSelection(MultiSpectralDataSource dataSource, Hydra hydra, int dataSourceId) {
         super(dataSource);
@@ -82,8 +85,8 @@ public class MultiSpectralSelection extends SelectionAdapter {
         for (int k=0; k<dataChoices.size(); k++) {
            if (((MultiSpectralDataSource)dataSource).getMultiSpectralData(k) != null) cnt++;
         }
-        final MultiSpectralData[] msdArray = new MultiSpectralData[cnt];
-        final HashMap[] bandMapArray = new HashMap[msdArray.length];
+        msdArray = new MultiSpectralData[cnt];
+        bandMapArray = new HashMap[msdArray.length];        
         for (int k=0; k<msdArray.length; k++) {
            msdArray[k] = ((MultiSpectralDataSource)dataSource).getMultiSpectralData(k);
            bandMapArray[k] = msdArray[k].getBandNameMap();
@@ -161,44 +164,7 @@ public class MultiSpectralSelection extends SelectionAdapter {
               if(e.getClickCount() == 1) {
                   DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
                   if (node == null) return;
-
-                  String bandName = null;
-                  Object nodeInfo = node.getUserObject();
-                  if (node.isLeaf()) {
-                     LeafInfo leaf = (LeafInfo)nodeInfo;
-                     if (leaf.source == thisObj) {
-                        lastSelectedLeafPath = selPath;
-                        bandName = leaf.name;
-                        dataBrowser.updateSpatialTemporalSelectionComponent(previewSelects[0]);
-                     }
-                  }
-                  else {
-                     NodeInfo info = (NodeInfo) node.getUserObject();
-                     if (info.source == thisObj) {
-                        dataBrowser.updateSpatialTemporalSelectionComponent(previewSelects[0]);
-                        previewSelects[0].updateBoxSelector();
-                     }
-                  }
-                  
-                  if (bandName == null) return;
-
-                    HashMap<String, Float> bandMap = null;
-                    try {
-                       for (int k=0; k<bandMapArray.length; k++) {
-                           if (bandMapArray[k].containsKey(bandName)) {
-                              bandMap = bandMapArray[k];
-                              setWaveNumber(bandMap.get(bandName), bandName);
-                              setChannelIndex(msdArray[k].getChannelIndexFromWavenumber(bandMap.get(bandName)));
-                              setDataChoice(k);
-                              fireSelectionEvent();
-                           }
-                       }
-                    }
-                    catch (Exception exc) {
-                       System.out.println(exc);
-                    }
-
-                    previewSelects[0].updateBoxSelector();
+                  setSelected(node);
                }
                else if(e.getClickCount() == 2) {
                   //pass
@@ -209,6 +175,47 @@ public class MultiSpectralSelection extends SelectionAdapter {
         tree.addMouseListener(ml);
 
         return tree;
+    }
+    
+    public void setSelected(Object obj) {
+       DefaultMutableTreeNode node = (DefaultMutableTreeNode) obj;       
+       String bandName = null;
+       Object nodeInfo = node.getUserObject();
+       if (node.isLeaf()) {
+            LeafInfo leaf = (LeafInfo)nodeInfo;
+            if (leaf.source == this) {
+               lastSelectedLeafPath = new TreePath(node.getPath());
+               bandName = leaf.name;
+               dataBrowser.updateSpatialTemporalSelectionComponent(previewSelects[0]);
+            }
+       }
+       else {
+            NodeInfo info = (NodeInfo) node.getUserObject();
+            if (info.source == this) {
+               dataBrowser.updateSpatialTemporalSelectionComponent(previewSelects[0]);
+               previewSelects[0].updateBoxSelector();
+            }
+       }
+
+       if (bandName == null) return;
+
+       HashMap<String, Float> bandMap = null;
+       try {
+           for (int k=0; k<bandMapArray.length; k++) {
+               if (bandMapArray[k].containsKey(bandName)) {
+                  bandMap = bandMapArray[k];
+                  setWaveNumber(bandMap.get(bandName), bandName);
+                  setChannelIndex(msdArray[k].getChannelIndexFromWavenumber(bandMap.get(bandName)));
+                  setDataChoice(k);
+                  fireSelectionEvent();
+               }
+           }
+        }
+        catch (Exception exc) {
+           System.out.println(exc);
+        }
+
+        previewSelects[0].updateBoxSelector();       
     }
 
     public Object getLastSelectedLeafPath() {

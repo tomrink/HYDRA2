@@ -87,11 +87,13 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
 
    JComponent geoTimeSelect;
 
-   HashMap<DefaultMutableTreeNode, Hydra> datasetToHydra = new HashMap<DefaultMutableTreeNode, Hydra>();
+   HashMap<DefaultMutableTreeNode, Hydra> datasetToHydra = new HashMap<>();
 
-   HashMap<DefaultMutableTreeNode, TreePath> datasetToDefaultPath = new HashMap<DefaultMutableTreeNode, TreePath>();
+   HashMap<DefaultMutableTreeNode, TreePath> datasetToDefaultPath = new HashMap<>();
 
-   HashMap<DefaultMutableTreeNode, PreviewSelection> datasetToDefaultComp = new HashMap<DefaultMutableTreeNode, PreviewSelection>();
+   HashMap<DefaultMutableTreeNode, PreviewSelection> datasetToDefaultComp = new HashMap<>();
+   
+   HashMap<DefaultMutableTreeNode, DefaultMutableTreeNode> datasetToDefaultNode = new HashMap<>();
 
    Hydra hydra = null;
 
@@ -368,47 +370,63 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
            else {
               tpath = currentDatasetPath;
            }
+           
            rootTree.removeTreeSelectionListener(this);
            rootTree.addSelectionPath(tpath);
            rootTree.addTreeSelectionListener(this);
-              
-           // TODO: this block of code modifies the display action gui for the multiChannelView
-           // Need to think about a generalized approach.  Note: hydra will be null for combinations
-           // hence the check.
-           if (hydra != null) {
-              if (hydra.multiDisplay) {
-                 windowSelect.setSelectedIndex(0);
-                 windowSelect.setEnabled(false);
-                 actionType.setEnabled(false);
-              }
-              else {
-                  windowSelect.setEnabled(true);
-                  if (windowSelect.getSelectedIndex() > 0) {
-                     actionType.setEnabled(true);
-                  }
-              }
-           }
-           else {   
-              if (windowSelect.getSelectedIndex() == 0) {
-                 if (windowSelect.getItemCount() == 1) {
-                    actionType.setEnabled(false);
-                 }
-                 else {
-                    windowSelect.setEnabled(true);
-                 }
-              }
-              else {
-                 windowSelect.setEnabled(true);
-                 actionType.setEnabled(true);
-              }
-           }
-           // ---------------------------------
+            
+           updateDisplayAction();
         }
         else {
            currentDatasetPath = new TreePath(((DefaultMutableTreeNode)node).getPath());
            selectedNode = node;
-           selectedLeafNode = null;
+           TreePath dfltPath = datasetToDefaultPath.get(node);
+           
+           rootTree.removeTreeSelectionListener(this);
+           rootTree.addSelectionPath(dfltPath);
+           rootTree.addTreeSelectionListener(this);
+           
+           selectedLeafNode = (DefaultMutableTreeNode) dfltPath.getLastPathComponent();
+           hydra = datasetToHydra.get(selectedLeafNode.getParent());
+           // This must be done manually here.
+           hydra.getSelection().setSelected(selectedLeafNode);
+           
+           updateDisplayAction();
+           
            updateSpatialTemporalSelectionComponent(datasetToDefaultComp.get(node));
+        }
+    }
+    
+    private void updateDisplayAction() {
+        // TODO: this block of code modifies the display action gui for the multiChannelView
+        // Need to think about a generalized approach.  Note: hydra will be null for combinations
+        // hence the check.
+        if (hydra != null) {
+           if (hydra.multiDisplay) {
+              windowSelect.setSelectedIndex(0);
+              windowSelect.setEnabled(false);
+              actionType.setEnabled(false);
+           }
+           else {
+               windowSelect.setEnabled(true);
+               if (windowSelect.getSelectedIndex() > 0) {
+                  actionType.setEnabled(true);
+               }
+           }
+        }
+        else {   
+           if (windowSelect.getSelectedIndex() == 0) {
+              if (windowSelect.getItemCount() == 1) {
+                 actionType.setEnabled(false);
+              }
+              else {
+                 windowSelect.setEnabled(true);
+              }
+           }
+           else {
+              windowSelect.setEnabled(true);
+              actionType.setEnabled(true);
+           }
         }
     }
 
