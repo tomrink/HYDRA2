@@ -1,5 +1,7 @@
 package edu.wisc.ssec.hydra.data;
 
+import edu.wisc.ssec.adapter.ArrayAdapter;
+import edu.wisc.ssec.adapter.GOESGridAdapter;
 import edu.wisc.ssec.adapter.MultiDimensionAdapter;
 import edu.wisc.ssec.adapter.MultiDimensionReader;
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
@@ -7,17 +9,21 @@ import edu.wisc.ssec.adapter.NetCDFFile;
 import edu.wisc.ssec.adapter.SpectrumAdapter;
 import edu.wisc.ssec.adapter.SwathAdapter;
 import edu.wisc.ssec.adapter.TrackAdapter;
+import edu.wisc.ssec.hydra.GEOSProjection;
+import edu.wisc.ssec.hydra.GEOSTransform;
 import java.io.File;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import ucar.unidata.util.ColorTable;
 
 import visad.Data;
 import visad.VisADException;
 
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import ucar.unidata.util.Range;
 
 
 /**
@@ -52,7 +58,9 @@ public class MultiDimensionDataSource extends DataSource {
     String dateTimeStamp;
     String description;
     boolean reduceBowTie = true;
-
+    boolean doReproject = true;
+    
+    ArrayAdapter l2P_flagsAdapter;
 
     public MultiDimensionDataSource(List sources) throws VisADException {
 
@@ -637,7 +645,146 @@ public class MultiDimensionDataSource extends DataSource {
            nadirResolution[k] = 1020f;
          }
          reduceBowTie = false;
-       } 
+       }
+       else if (name.startsWith("geocatL2") && name.contains("HIMAWARI-8") && name.contains("FLDK")) {
+          String[] arrayNames = new String[] {"ACHA_mode_8_cloud_top_height", "ACHA_mode_8_cloud_top_pressure", "ACHA_mode_8_cloud_top_temperature",
+             "eps_cmask_ahi_cloud_mask", "enterprise_cldphase_10_11_13_14_15_cloud_phase", "enterprise_cldphase_10_11_13_14_15_cloud_type"};
+          
+          String[] rangeNames = new String[] {"Cld_Top_Hght", "Cld_Top_Pres", "Cld_Top_Temp", "Cloud_Mask", "Cloud_Phase", "Cloud_Type"};
+
+          
+          adapters = new MultiDimensionAdapter[arrayNames.length];
+          defaultSubsets = new HashMap[arrayNames.length];
+         
+          nadirResolution = new float[adapters.length];
+          
+          double scale_x = 5.588799029559623E-5;
+          double offset_x = -0.15371991730803744;
+          double scale_y = 5.588799029559623E-5;
+          double offset_y = -0.15371991730803744;
+          
+          float subLonDegrees = 140.7f;
+          String sweepAngleAxis = "GEOS";
+          double inverty = 1.0;
+          int xDimLen = 5500;
+          int yDimLen = 5500;
+          
+          GEOSTransform geosTran = new GEOSTransform(subLonDegrees, sweepAngleAxis);
+
+          GEOSProjection mapProj = new GEOSProjection(geosTran, 0.0, 0.0, (double)xDimLen, (double)yDimLen, 
+                        scale_x, offset_x, inverty*scale_y, inverty*offset_y);
+
+          for (int k=0; k<arrayNames.length; k++) {
+            HashMap metadata = GOESGridAdapter.getEmptyMetadataTable();
+            metadata.put(MultiDimensionAdapter.array_name, arrayNames[k]);
+            metadata.put(MultiDimensionAdapter.range_name, rangeNames[k]);
+            metadata.put(GOESGridAdapter.gridX_name, "elements");
+            metadata.put(GOESGridAdapter.gridY_name, "lines");
+            metadata.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            metadata.put(MultiDimensionAdapter.offset_name, "add_offset");
+            metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            metadata.put("range_check_after_scaling", "false");
+            metadata.put("unpack", "true");
+
+            GOESGridAdapter goesAdapter = new GOESGridAdapter(reader, metadata, mapProj, 10);
+            HashMap subset = goesAdapter.getDefaultSubset();
+            
+            defaultSubset = subset;
+            adapters[k] = goesAdapter;
+            defaultSubsets[k] = defaultSubset;
+            nadirResolution[k] = 2000;
+         }
+         reduceBowTie = false;     
+         doReproject = false;
+       }
+       else if (name.startsWith("geocatL2") && name.contains("HIMAWARI-8")) {
+          String[] arrayNames = new String[] {"ACHA_mode_8_cloud_top_height", "ACHA_mode_8_cloud_top_pressure", "ACHA_mode_8_cloud_top_temperature",
+             "eps_cmask_ahi_cloud_mask", "enterprise_cldphase_10_11_13_14_15_cloud_phase", "enterprise_cldphase_10_11_13_14_15_cloud_type"};
+          
+          String[] rangeNames = new String[] {"Cld_Top_Hght", "Cld_Top_Pres", "Cld_Top_Temp", "Cloud_Mask", "Cloud_Phase", "Cloud_Type"};
+
+          adapters = new MultiDimensionAdapter[arrayNames.length];
+          defaultSubsets = new HashMap[arrayNames.length];
+         
+          nadirResolution = new float[adapters.length];
+          
+          for (int k=0; k<arrayNames.length; k++) {
+            HashMap metadata = SwathAdapter.getEmptyMetadataTable();
+            metadata.put(MultiDimensionAdapter.array_name, arrayNames[k]);
+            metadata.put(MultiDimensionAdapter.range_name, rangeNames[k]);
+            metadata.put(SwathAdapter.xtrack_name, "elements");
+            metadata.put(SwathAdapter.track_name, "lines");
+            metadata.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            metadata.put(MultiDimensionAdapter.offset_name, "add_offset");
+            metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            metadata.put("range_check_after_scaling", "false");
+            metadata.put("unpack", "true");
+            metadata.put(SwathAdapter.lon_array_name, "pixel_longitude");
+            metadata.put(SwathAdapter.lat_array_name, "pixel_latitude"); 
+            metadata.put(SwathAdapter.geo_xtrack_name, "elements");
+            metadata.put(SwathAdapter.geo_track_name, "lines");
+            metadata.put(SwathAdapter.lon_array_dimension_names, new String[] {"lines", "elements"});
+            metadata.put(SwathAdapter.lat_array_dimension_names, new String[] {"lines", "elements"});
+            metadata.put(SwathAdapter.geo_scale_name, "scale_factor");
+            metadata.put(SwathAdapter.geo_fillValue_name, "_FillValue");            
+
+            SwathAdapter adapter = new SwathAdapter(reader, metadata);
+            HashMap subset = adapter.getDefaultSubset();
+            
+            defaultSubset = subset;
+            adapters[k] = adapter;
+            defaultSubsets[k] = defaultSubset;
+            nadirResolution[k] = 2000;
+         }
+         reduceBowTie = false;     
+         doReproject = false;
+       }
+       else if (name.contains("SST") && name.contains("VIIRS_NPP-ACSPO")) {
+          String[] arrayNames = new String[] {"sea_surface_temperature"};
+          String[] rangeNames = new String[] {"SST"};
+          adapters = new MultiDimensionAdapter[arrayNames.length];
+          defaultSubsets = new HashMap[arrayNames.length];
+          nadirResolution = new float[arrayNames.length];
+          
+          for (int k=0; k<arrayNames.length; k++) {
+            HashMap metadata = SwathAdapter.getEmptyMetadataTable();
+            metadata.put(MultiDimensionAdapter.array_name, arrayNames[k]);
+            metadata.put(MultiDimensionAdapter.range_name, rangeNames[k]);
+            metadata.put(SwathAdapter.xtrack_name, "ni");
+            metadata.put(SwathAdapter.track_name, "nj");
+            metadata.put(SwathAdapter.array_dimension_names, new String[] {"time", "nj", "ni"});
+            metadata.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            metadata.put(MultiDimensionAdapter.offset_name, "add_offset");
+            metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            metadata.put("range_check_after_scaling", "false");
+            metadata.put("unpack", "true");
+            metadata.put(SwathAdapter.lon_array_name, "lon");
+            metadata.put(SwathAdapter.lat_array_name, "lat"); 
+            metadata.put(SwathAdapter.geo_xtrack_name, "ni");
+            metadata.put(SwathAdapter.geo_track_name, "nj");
+            metadata.put(SwathAdapter.lon_array_dimension_names, new String[] {"nj", "ni"});
+            metadata.put(SwathAdapter.lat_array_dimension_names, new String[] {"nj", "ni"});
+
+            SwathAdapter adapter = new SwathAdapter(reader, metadata);
+            adapter.setDefaultStride(10);
+            HashMap subset = adapter.getDefaultSubset();
+            double[] coords = new double[] {0.0, 0.0, 1.0};
+            subset.put("time", coords); 
+            
+            defaultSubset = subset;
+            adapters[k] = adapter;
+            defaultSubsets[k] = defaultSubset;
+            nadirResolution[k] = 780;             
+          }
+          
+          HashMap metadata = SwathAdapter.getEmptyMetadataTable();
+          metadata.put(MultiDimensionAdapter.array_name, "l2p_flags");
+          metadata.put(SwathAdapter.xtrack_name, "ni");
+          metadata.put(SwathAdapter.track_name, "nj");
+          metadata.put(SwathAdapter.array_dimension_names, new String[] {"time", "nj", "ni"});
+          metadata.put(SwathAdapter.lat_array_dimension_names, new String[] {"nj", "ni"});
+          l2P_flagsAdapter = new ArrayAdapter(reader, metadata);          
+       }
     }
 
     
@@ -718,6 +865,41 @@ public class MultiDimensionDataSource extends DataSource {
        return description;
     }
     
+    public Range getDefaultColorRange(DataChoice choice) {
+       Range range;
+       if (choice.getName().equals("Cloud_Phase") && file.getName().contains("geocatL2")) {
+          range = new Range(0f-0.5f, 5f+0.5f);
+       }
+       else {
+          range = super.getDefaultColorRange(choice);
+       }
+       return range;
+    }
+    
+    public ColorTable getDefaultColorTable(DataChoice choice) {
+       ColorTable clrTbl;
+       
+       if (choice.getName().equals("Cloud_Phase") && file.getName().contains("geocatL2")) {
+       
+          float[][] palette = new float[][] {{0f, 15f,  44f,  11f,  251f,  243f},
+                                             {0f, 190f, 248f, 102f, 246f,  42f},
+                                             {0f, 250f, 43f,  12f,   47f,  250f},
+                          {0.98f, 0.98f, 0.98f, 0.98f, 0.98f, 0.98f}};
+
+           for (int i=0; i<palette[0].length; i++) palette[0][i] /= 256;
+           for (int i=0; i<palette[1].length; i++) palette[1][i] /= 256;
+           for (int i=0; i<palette[2].length; i++) palette[2][i] /= 256;
+
+           clrTbl = new ColorTable();
+           clrTbl.setTable(palette);
+       }
+       else {
+          clrTbl = super.getDefaultColorTable(choice);
+       }
+       
+       return clrTbl;
+    }
+    
     public float getNadirResolution(DataChoice choice) throws Exception {
        String name = choice.getName();
        for (int k=0; k<myDataChoices.size(); k++) {
@@ -731,7 +913,10 @@ public class MultiDimensionDataSource extends DataSource {
     public boolean getReduceBowtie(DataChoice choice) {
        return reduceBowTie;
     }
-
+    
+    public boolean getDoReproject(DataChoice choice) {
+       return doReproject;
+    }
 
     public Data getData(DataChoice dataChoice, DataSelection dataSelection)
              throws VisADException, RemoteException {
@@ -757,6 +942,16 @@ public class MultiDimensionDataSource extends DataSource {
             
             if (subset != null) {
               data = adapter.getData(subset);
+              if (l2P_flagsAdapter != null) {
+                 float[][] sst = ((visad.FlatField)data).getFloats(false);
+                 short[] flags = (short[]) l2P_flagsAdapter.readArray(subset);
+                 short sb = -32768;
+                 for (int i=0; i<flags.length; i++) {
+                    if ( ((flags[i] & sb) == sb) ) {
+                       sst[0][i] = Float.NaN;
+                    }
+                 }
+              }
             }
         } catch (Exception e) {
             e.printStackTrace();

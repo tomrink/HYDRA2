@@ -6,6 +6,8 @@ import edu.wisc.ssec.adapter.AMSA_xxx_L1_RangeProcessor;
 import edu.wisc.ssec.adapter.AMSUA_L1C_AAPP_RangeProcessor;
 import edu.wisc.ssec.adapter.AVHR_ncdf_L1_RangeProcessor;
 import edu.wisc.ssec.adapter.AVHR_xxx_L1_RangeProcessor;
+import edu.wisc.ssec.adapter.GOESGridAdapter;
+import edu.wisc.ssec.adapter.GeoSfcAdapter;
 import edu.wisc.ssec.adapter.GranuleAggregation;
 import edu.wisc.ssec.adapter.HIRS_L1C_RangeProcessor;
 import edu.wisc.ssec.adapter.HIRS_L1_NCDF_RangeProcessor;
@@ -30,6 +32,9 @@ import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.NetCDFFile;
 import edu.wisc.ssec.adapter.SpectrumAdapter;
 import edu.wisc.ssec.adapter.SwathAdapter;
+import edu.wisc.ssec.hydra.GEOSProjection;
+import edu.wisc.ssec.hydra.GEOSTransform;
+import edu.wisc.ssec.hydra.Hydra;
 import java.awt.geom.Rectangle2D;
 
 import java.io.File;
@@ -59,6 +64,7 @@ import visad.georef.MapProjection;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
+import ucar.unidata.util.ColorTable;
 
 /**
  * A data source for Multi Dimension Data 
@@ -94,10 +100,12 @@ public class MultiSpectralDataSource extends DataSource {
     
     ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
     float nadirResolution = Float.NaN;
+    float[] nadirResolutions;
     String sensorName = null;
     String dateTimeStamp;
     String description;
     boolean reduceBowTie = true;
+    boolean doReproject = true;
     boolean hyperSpectral = false;
     boolean imager = false;
     boolean sounder = false;
@@ -403,17 +411,14 @@ public class MultiSpectralDataSource extends DataSource {
            {3.799f,3.992f,3.968f,4.070f,4.476f,4.549f,6.784f,7.345f,8.503f,
             9.700f,11.000f,12.005f,13.351f,13.717f,13.908f,14.205f});
          table.put(SpectrumAdapter.bandNames, new String[] 
-           {"20","21","22","23","24","25","27","28","29",
-            "30","31","32","33","34","35","36"});
+           {"B20","B21","B22","B23","B24","B25","B27","B28","B29",
+            "B30","B31","B32","B33","B34","B35","B36"});
          table.put(SpectrumAdapter.channelType, "wavelength");
          SpectrumAdapter spectrumAdapter = new SpectrumAdapter(reader, table);
 
          multiSpectData = new MultiSpectralData(swathAdapter, spectrumAdapter, "MODIS", "Aqua");
          multiSpectData.setInitialWavenumber(11.0f);
          defaultSubset = multiSpectData.getDefaultSubset();
-
-         //previewImage = multiSpectData.getImage(defaultSubset);
-         multiSpectData_s.add(multiSpectData);
 
          //--- aggregate reflective bands
          table = SwathAdapter.getEmptyMetadataTable();
@@ -449,8 +454,8 @@ public class MultiSpectralDataSource extends DataSource {
             {.412f,.450f,.487f,.531f,.551f,.666f,.668f,.677f,.679f,.748f,
              .869f,.905f,.936f,.940f,1.375f});
          table.put(SpectrumAdapter.bandNames, new String[]
-            {"8","9","10","11","12","13lo","13hi","14lo","14hi","15",
-             "16","17","18","19","26"});
+            {"B8","B9","B10","B11","B12","B13L","B13H","B14L","B14H","B15",
+             "B16","B17","B18","B19","B26"});
          table.put(SpectrumAdapter.channelType, "wavelength");
          SpectrumAdapter specadap0 = new SpectrumAdapter(reader, table);
          MultiSpectralData multispec0 = new MultiSpectralData(sadapt0, specadap0, "Reflectance", "Reflectance", "MODIS", "Aqua", date);
@@ -486,7 +491,7 @@ public class MultiSpectralDataSource extends DataSource {
          table.put(SpectrumAdapter.channelValues, new float[]
             {.650f,.855f});
          table.put(SpectrumAdapter.bandNames, new String[]
-            {"1","2"});
+            {"B1","B2"});
          table.put(SpectrumAdapter.channelType, "wavelength");
          SpectrumAdapter specadap1 = new SpectrumAdapter(reader, table);
          MultiSpectralData multispec1 = new MultiSpectralData(sadapt1, specadap1, "Reflectance", "Reflectance", "MODIS", "Aqua", date);
@@ -523,7 +528,7 @@ public class MultiSpectralDataSource extends DataSource {
          table.put(SpectrumAdapter.channelValues, new float[]
             {.470f,.555f,1.240f,1.638f,2.130f});
          table.put(SpectrumAdapter.bandNames, new String[]
-            {"3","4","5","6","7"});
+            {"B3","B4","B5","B6","B7"});
          table.put(SpectrumAdapter.channelType, "wavelength");
          SpectrumAdapter specadap2 = new SpectrumAdapter(reader, table);
          MultiSpectralData multispec2 = new MultiSpectralData(sadapt2, specadap2, "Reflectance", "Reflectance", "MODIS", "Aqua", date);
@@ -532,6 +537,8 @@ public class MultiSpectralDataSource extends DataSource {
          aggr.setInitialWavenumber(0.650f);
          aggr.setDataRange(new float[] {0f, 0.8f});
          multiSpectData_s.add(aggr);
+         
+         multiSpectData_s.add(multiSpectData);
          imager = true;
          sounder = false;
        }
@@ -579,7 +586,7 @@ public class MultiSpectralDataSource extends DataSource {
          table.put(SpectrumAdapter.channelValues, new float[]
             {.650f,.855f});
          table.put(SpectrumAdapter.bandNames, new String[]
-            {"1","2"});
+            {"B1","B2"});
          table.put(SpectrumAdapter.channelType, "wavelength");
          SpectrumAdapter spectrumAdapter = new SpectrumAdapter(reader, table);
 
@@ -640,7 +647,7 @@ public class MultiSpectralDataSource extends DataSource {
          table.put(SpectrumAdapter.channelValues, new float[]
             {.650f,.855f});
          table.put(SpectrumAdapter.bandNames, new String[]
-            {"1","2"});
+            {"B1","B2"});
          table.put(SpectrumAdapter.channelType, "wavelength");
          SpectrumAdapter spectrumAdapter0 = new SpectrumAdapter(reader, table);
 
@@ -677,7 +684,7 @@ public class MultiSpectralDataSource extends DataSource {
          table.put(SpectrumAdapter.channelValues, new float[]
             {.470f,.555f,1.240f,1.638f,2.130f});
          table.put(SpectrumAdapter.bandNames, new String[]
-            {"3","4","5","6","7"});
+            {"B3","B4","B5","B6","B7"});
          table.put(SpectrumAdapter.channelType, "wavelength");
          SpectrumAdapter spectrumAdapter1 = new SpectrumAdapter(reader, table);
 
@@ -690,7 +697,6 @@ public class MultiSpectralDataSource extends DataSource {
          multiSpectData_s.add(aggr);
          multiSpectData = aggr;
          defaultSubset = aggr.getDefaultSubset();
-         multiSpectData_s.add(null);
          imager = true;
          sounder = false;
        }
@@ -849,6 +855,7 @@ public class MultiSpectralDataSource extends DataSource {
          reduceBowTie = false;
          imager = true;
          sounder = false;
+         doReproject = false;
        }
        else if (name.contains("AVHR_C") && name.endsWith(".nc")) {
          HashMap swthTable = SwathAdapter.getEmptyMetadataTable();
@@ -1043,6 +1050,7 @@ public class MultiSpectralDataSource extends DataSource {
          reduceBowTie = false;
          imager = true;
          sounder = false;
+         doReproject = false;
        }
        else if (name.startsWith("MHSx_xxx_1B") && name.endsWith(".h5")) {
          HashMap swthTable = SwathAdapter.getEmptyMetadataTable();
@@ -1225,8 +1233,8 @@ public class MultiSpectralDataSource extends DataSource {
          multiSpectData = aggr;
          multiSpectData_s.add(aggr);
          reduceBowTie = false;
-          sounder = true;
-          imager = false;         
+         sounder = true;
+         imager = false;         
        }
        else if (name.startsWith("HIRS_xxx_1B") && name.endsWith(".h5")) {
 
@@ -1278,8 +1286,8 @@ public class MultiSpectralDataSource extends DataSource {
          multiSpectData = aggr;
          multiSpectData_s.add(aggr);
          reduceBowTie = false;
-          sounder = true;
-          imager = false;         
+         sounder = true;
+         imager = false;         
        }
        else if (name.contains("HIRS_C") && name.endsWith(".nc")) {
          int numChannels = 19; // Emissive channels
@@ -1332,8 +1340,8 @@ public class MultiSpectralDataSource extends DataSource {
          multiSpectData = aggr;
          multiSpectData_s.add(aggr);
          reduceBowTie = false;
-          sounder = true;
-          imager = false;         
+         sounder = true;
+         imager = false;         
        }
        else if (name.startsWith("hirsl1c") && name.endsWith(".h5")) {
            HashMap swthTable = SwathAdapter.getEmptyMetadataTable();
@@ -1375,7 +1383,7 @@ public class MultiSpectralDataSource extends DataSource {
            multiSpectData_s.add(msd);
            reduceBowTie = false;
            sounder = true;
-          imager = false;          
+           imager = false;          
        }
        else if (name.startsWith("AMSA_xxx_1B") && name.endsWith(".h5")) {
          int numChannels = 15; // Emissive channels
@@ -1427,8 +1435,8 @@ public class MultiSpectralDataSource extends DataSource {
          multiSpectData = aggr;
          multiSpectData_s.add(aggr);
          reduceBowTie = false;
-          sounder = true;
-          imager = false;         
+         sounder = true;
+         imager = false;         
        }
        else if (name.contains("AMSUA_C") && name.endsWith(".nc")) {
          int numChannels = 15; // Emissive channels
@@ -1482,8 +1490,8 @@ public class MultiSpectralDataSource extends DataSource {
          multiSpectData = aggr;
          multiSpectData_s.add(aggr);
          reduceBowTie = false;
-           sounder = true;
-          imager = false;        
+         sounder = true;
+         imager = false;        
        }
        else if (name.startsWith("amsual1c") && name.endsWith(".h5")) {
            HashMap swthTable = SwathAdapter.getEmptyMetadataTable();
@@ -1945,7 +1953,252 @@ public class MultiSpectralDataSource extends DataSource {
            reduceBowTie = false;
            imager = true;
            sounder = false;
+           doReproject = false;
        }
+       else if (name.startsWith("geocatL1") && name.contains("HIMAWARI-8") && name.contains("FLDK")) {
+          String prefix = "himawari_8_ahi_";
+          
+          String[] bandNamesEmis = new String[] {"7", "8", "9", "10", "11", "12", "13", "14", "15", "16"};
+          String[] arrayNamesEmis = new String[bandNamesEmis.length];
+          for (int k=0; k<bandNamesEmis.length; k++) {
+             arrayNamesEmis[k] = prefix+"channel_"+bandNamesEmis[k]+"_brightness_temperature";
+          }
+          float[]  cntrWaveLenEmis = new float[] {3.9f, 6.2f, 6.9f, 7.3f, 8.6f, 9.6f, 10.4f, 11.2f, 12.4f, 13.3f};
+          
+          String[] bandNamesRefl = new String[] {"1", "2", "3", "4", "5", "6", "7"};
+          String[] arrayNamesRefl = new String[bandNamesRefl.length];
+          for (int k=0; k<bandNamesRefl.length; k++) {
+             arrayNamesRefl[k] = prefix+"channel_"+bandNamesRefl[k]+"_reflectance";
+          }          
+          float[] cntrWaveLenRefl = new float[] {0.47f, 0.51f, 0.64f, 0.86f, 1.6f, 2.3f, 3.9f};
+          bandNamesRefl[6] = "7refl";
+          
+          double scale_x = 5.588799029559623E-5;
+          double offset_x = -0.15371991730803744;
+          double scale_y = 5.588799029559623E-5;
+          double offset_y = -0.15371991730803744;
+          
+          float subLonDegrees = 140.7f;
+          String sweepAngleAxis = "GEOS";
+          double inverty = 1.0;
+          int xDimLen = 5500;
+          int yDimLen = 5500;
+          
+          GEOSTransform geosTran = new GEOSTransform(subLonDegrees, sweepAngleAxis);
+
+          GEOSProjection mapProj = new GEOSProjection(geosTran, 0.0, 0.0, (double)xDimLen, (double)yDimLen, 
+                        scale_x, offset_x, inverty*scale_y, inverty*offset_y);
+          
+          MultiSpectralData[] msdRefl = new MultiSpectralData[arrayNamesRefl.length];
+          MultiSpectralData[] msdEmis = new MultiSpectralData[arrayNamesEmis.length];
+
+          for (int k=0; k<arrayNamesRefl.length; k++) {
+            HashMap metadata = GOESGridAdapter.getEmptyMetadataTable();
+            metadata.put(MultiDimensionAdapter.array_name, arrayNamesRefl[k]);
+            metadata.put(GOESGridAdapter.gridX_name, "elements");
+            metadata.put(GOESGridAdapter.gridY_name, "lines");
+            metadata.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            metadata.put(MultiDimensionAdapter.offset_name, "add_offset");
+            metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            metadata.put("range_check_after_scaling", "false");
+            metadata.put("unpack", "true");
+
+            GeoSfcAdapter goesAdapter = new GOESGridAdapter(reader, metadata, mapProj, 10);
+            HashMap subset = goesAdapter.getDefaultSubset();
+            
+            defaultSubset = subset;
+            nadirResolution = 2000;
+            
+            HashMap table = SpectrumAdapter.getEmptyMetadataTable();
+            table.put(SpectrumAdapter.array_name, arrayNamesRefl[k]);
+            table.put(SpectrumAdapter.x_dim_name, "elements");
+            table.put(SpectrumAdapter.y_dim_name, "lines");
+            table.put(SpectrumAdapter.channelValues, new float[] {cntrWaveLenRefl[k]});
+            table.put(SpectrumAdapter.bandNames, new String[] {bandNamesRefl[k]});
+            table.put(SpectrumAdapter.channelType, "wavelength");
+            table.put(SwathAdapter.array_dimension_names, new String[] {"lines", "elements"});
+            table.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            table.put(MultiDimensionAdapter.offset_name, "add_offset");
+            table.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            table.put("range_check_after_scaling", "false");
+            table.put("unpack", "true");            
+            SpectrumAdapter spectrumAdapter = new SpectrumAdapter(reader, table);
+            
+            MultiSpectralData msd = new MultiSpectralData(goesAdapter, spectrumAdapter, "Reflectance100", "Reflectance", null, null);
+            msdRefl[k] = msd;
+         }
+         MultiSpectralAggr aggrR = new MultiSpectralAggr(msdRefl);
+         aggrR.setInitialWavenumber(0.86f);
+         
+         for (int k=0; k<arrayNamesEmis.length; k++) {
+            HashMap metadata = GOESGridAdapter.getEmptyMetadataTable();
+            metadata.put(MultiDimensionAdapter.array_name, arrayNamesEmis[k]);
+            metadata.put(GOESGridAdapter.gridX_name, "elements");
+            metadata.put(GOESGridAdapter.gridY_name, "lines");
+            metadata.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            metadata.put(MultiDimensionAdapter.offset_name, "add_offset");
+            metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            metadata.put("range_check_after_scaling", "false");
+            metadata.put("unpack", "true");
+
+            GOESGridAdapter goesAdapter = new GOESGridAdapter(reader, metadata, mapProj, 10);
+            HashMap subset = goesAdapter.getDefaultSubset();
+            
+            defaultSubset = subset;
+            nadirResolution = 2000;
+            
+            HashMap table = SpectrumAdapter.getEmptyMetadataTable();
+            table.put(SpectrumAdapter.array_name, arrayNamesEmis[k]);
+            table.put(SpectrumAdapter.x_dim_name, "elements");
+            table.put(SpectrumAdapter.y_dim_name, "lines");
+            table.put(SpectrumAdapter.channelValues, new float[] {cntrWaveLenEmis[k]});
+            table.put(SpectrumAdapter.bandNames, new String[] {bandNamesEmis[k]});
+            table.put(SpectrumAdapter.channelType, "wavelength");
+            table.put(SwathAdapter.array_dimension_names, new String[] {"lines", "elements"});
+            table.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            table.put(MultiDimensionAdapter.offset_name, "add_offset");
+            table.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            table.put("range_check_after_scaling", "false");
+            table.put("unpack", "true");            
+            SpectrumAdapter spectrumAdapter = new SpectrumAdapter(reader, table);
+            
+            MultiSpectralData msd = new MultiSpectralData(goesAdapter, spectrumAdapter, "BrightnessTemp", "BrightnessTemp", null, null);
+            msdEmis[k] = msd;
+         }   
+         MultiSpectralAggr aggrE = new MultiSpectralAggr(msdEmis);
+         aggrE.setInitialWavenumber(10.4f);
+         
+         multiSpectData_s.add(aggrR);
+         multiSpectData_s.add(aggrE);
+         
+          
+         reduceBowTie = false;
+         imager = true;
+         doReproject = false;
+         sounder = false;
+       }
+       else if (name.startsWith("geocatL1") && name.contains("HIMAWARI-8")) {
+          String prefix = "himawari_8_ahi_";
+          
+          String[] bandNamesEmis = new String[] {"7", "8", "9", "10", "11", "12", "13", "14", "15", "16"};
+          String[] arrayNamesEmis = new String[bandNamesEmis.length];
+          for (int k=0; k<bandNamesEmis.length; k++) {
+             arrayNamesEmis[k] = prefix+"channel_"+bandNamesEmis[k]+"_brightness_temperature";
+          }
+          float[]  cntrWaveLenEmis = new float[] {3.9f, 6.2f, 6.9f, 7.3f, 8.6f, 9.6f, 10.4f, 11.2f, 12.4f, 13.3f};
+          
+          String[] bandNamesRefl = new String[] {"1", "2", "3", "4", "5", "6", "7"};
+          String[] arrayNamesRefl = new String[bandNamesRefl.length];
+          for (int k=0; k<bandNamesRefl.length; k++) {
+             arrayNamesRefl[k] = prefix+"channel_"+bandNamesRefl[k]+"_reflectance";
+          }          
+          float[] cntrWaveLenRefl = new float[] {0.47f, 0.51f, 0.64f, 0.86f, 1.6f, 2.3f, 3.9f};
+          bandNamesRefl[6] = "7refl";
+          
+          MultiSpectralData[] msdRefl = new MultiSpectralData[arrayNamesRefl.length];
+          MultiSpectralData[] msdEmis = new MultiSpectralData[arrayNamesEmis.length];
+
+          for (int k=0; k<arrayNamesRefl.length; k++) {
+            HashMap metadata = SwathAdapter.getEmptyMetadataTable();
+            metadata.put(MultiDimensionAdapter.array_name, arrayNamesRefl[k]);
+            metadata.put(SwathAdapter.xtrack_name, "elements");
+            metadata.put(SwathAdapter.track_name, "lines");
+            metadata.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            metadata.put(MultiDimensionAdapter.offset_name, "add_offset");
+            metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            metadata.put("range_check_after_scaling", "false");
+            metadata.put("unpack", "true");
+            metadata.put(SwathAdapter.lon_array_name, "pixel_longitude");
+            metadata.put(SwathAdapter.lat_array_name, "pixel_latitude"); 
+            metadata.put(SwathAdapter.geo_xtrack_name, "elements");
+            metadata.put(SwathAdapter.geo_track_name, "lines");
+            metadata.put(SwathAdapter.lon_array_dimension_names, new String[] {"lines", "elements"});
+            metadata.put(SwathAdapter.lat_array_dimension_names, new String[] {"lines", "elements"});
+            metadata.put(SwathAdapter.geo_scale_name, "scale_factor");
+            metadata.put(SwathAdapter.geo_fillValue_name, "_FillValue");
+
+            GeoSfcAdapter goesAdapter = new SwathAdapter(reader, metadata);
+            HashMap subset = goesAdapter.getDefaultSubset();
+            
+            defaultSubset = subset;
+            nadirResolution = 2000;
+            
+            HashMap table = SpectrumAdapter.getEmptyMetadataTable();
+            table.put(SpectrumAdapter.array_name, arrayNamesRefl[k]);
+            table.put(SpectrumAdapter.x_dim_name, "elements");
+            table.put(SpectrumAdapter.y_dim_name, "lines");
+            table.put(SpectrumAdapter.channelValues, new float[] {cntrWaveLenRefl[k]});
+            table.put(SpectrumAdapter.bandNames, new String[] {bandNamesRefl[k]});
+            table.put(SpectrumAdapter.channelType, "wavelength");
+            table.put(SwathAdapter.array_dimension_names, new String[] {"lines", "elements"});
+            table.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            table.put(MultiDimensionAdapter.offset_name, "add_offset");
+            table.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            table.put("range_check_after_scaling", "false");
+            table.put("unpack", "true");            
+            SpectrumAdapter spectrumAdapter = new SpectrumAdapter(reader, table);
+            
+            MultiSpectralData msd = new MultiSpectralData(goesAdapter, spectrumAdapter, "Reflectance100", "Reflectance", null, null);
+            msdRefl[k] = msd;
+         }
+         MultiSpectralAggr aggrR = new MultiSpectralAggr(msdRefl);
+         aggrR.setInitialWavenumber(0.86f);
+         
+         for (int k=0; k<arrayNamesEmis.length; k++) {
+            HashMap metadata = SwathAdapter.getEmptyMetadataTable();
+            metadata.put(MultiDimensionAdapter.array_name, arrayNamesEmis[k]);
+            metadata.put(SwathAdapter.xtrack_name, "elements");
+            metadata.put(SwathAdapter.track_name, "lines");
+            metadata.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            metadata.put(MultiDimensionAdapter.offset_name, "add_offset");
+            metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            metadata.put("range_check_after_scaling", "false");
+            metadata.put("unpack", "true");
+            metadata.put(SwathAdapter.lon_array_name, "pixel_longitude");
+            metadata.put(SwathAdapter.lat_array_name, "pixel_latitude");
+            metadata.put(SwathAdapter.geo_xtrack_name, "elements");
+            metadata.put(SwathAdapter.geo_track_name, "lines");
+            metadata.put(SwathAdapter.lon_array_dimension_names, new String[] {"lines", "elements"});
+            metadata.put(SwathAdapter.lat_array_dimension_names, new String[] {"lines", "elements"});
+            metadata.put(SwathAdapter.geo_scale_name, "scale_factor");
+            metadata.put(SwathAdapter.geo_fillValue_name, "_FillValue");            
+            
+            GeoSfcAdapter goesAdapter = new SwathAdapter(reader, metadata);
+            HashMap subset = goesAdapter.getDefaultSubset();
+            
+            defaultSubset = subset;
+            nadirResolution = 2000;
+            
+            HashMap table = SpectrumAdapter.getEmptyMetadataTable();
+            table.put(SpectrumAdapter.array_name, arrayNamesEmis[k]);
+            table.put(SpectrumAdapter.x_dim_name, "elements");
+            table.put(SpectrumAdapter.y_dim_name, "lines");
+            table.put(SpectrumAdapter.channelValues, new float[] {cntrWaveLenEmis[k]});
+            table.put(SpectrumAdapter.bandNames, new String[] {bandNamesEmis[k]});
+            table.put(SpectrumAdapter.channelType, "wavelength");
+            table.put(SwathAdapter.array_dimension_names, new String[] {"lines", "elements"});
+            table.put(MultiDimensionAdapter.scale_name, "scale_factor");
+            table.put(MultiDimensionAdapter.offset_name, "add_offset");
+            table.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            table.put("range_check_after_scaling", "false");
+            table.put("unpack", "true");            
+            SpectrumAdapter spectrumAdapter = new SpectrumAdapter(reader, table);
+            
+            MultiSpectralData msd = new MultiSpectralData(goesAdapter, spectrumAdapter, "BrightnessTemp", "BrightnessTemp", null, null);
+            msdEmis[k] = msd;
+         }   
+         MultiSpectralAggr aggrE = new MultiSpectralAggr(msdEmis);
+         aggrE.setInitialWavenumber(10.4f);
+         
+         multiSpectData_s.add(aggrR);
+         multiSpectData_s.add(aggrE);
+         
+          
+         reduceBowTie = false;
+         imager = true;
+         doReproject = false;
+         sounder = false;
+       }       
        else {
           HashMap table = SwathAdapter.getEmptyMetadataTable();
           table.put("array_name", "MODIS_SWATH_Type_L1B/Data_Fields/EV_1KM_Emissive");
@@ -1978,9 +2231,23 @@ public class MultiSpectralDataSource extends DataSource {
         try {
           for (int k=0; k<multiSpectData_s.size(); k++) {
             MultiSpectralData adapter = multiSpectData_s.get(k);
-            DataChoice choice = doMakeDataChoice(k, adapter);
-            adapterMap.put(choice.getName(), adapter);
-            myDataChoices.add(choice);
+            
+            if (adapter.hasBandNames()) {
+               ArrayList<String> bandNames = adapter.getBandNames();
+               HashMap<String, Float> bmap = adapter.getBandNameMap();
+               for (int b=0; b<bandNames.size(); b++) {
+                  String bname = bandNames.get(b);
+                  int channelIndex = adapter.getChannelIndexFromWavenumber(bmap.get(bname));
+                  DataChoice choice = doMakeDataChoice(adapter, bname, channelIndex);
+                  adapterMap.put(choice.getName(), adapter);
+                  myDataChoices.add(choice);
+               }
+            }
+            else {
+               DataChoice choice = doMakeDataChoice(k, adapter);
+               adapterMap.put(choice.getName(), adapter);
+               myDataChoices.add(choice);
+            }
           }
         }
         catch(Exception e) {
@@ -2000,6 +2267,18 @@ public class MultiSpectralDataSource extends DataSource {
         ddc.setDataSelection(dataSel);
         return ddc;
     }
+    
+    private DataChoice doMakeDataChoice(MultiSpectralData adapter, String name, int channelIndex) throws Exception {
+       
+       DataSelection dataSelection = new MultiDimensionSubset(adapter.getDefaultSubset());
+       double[] coords = new double[] {(double)channelIndex, (double)channelIndex, (double)1};
+       
+       ((MultiDimensionSubset)dataSelection).setCoords(SpectrumAdapter.channelIndex_name, coords);   
+       
+       DataChoice ddc = new DataChoice(this, name, null);
+       ddc.setDataSelection(dataSelection);
+       return ddc;
+    }
 
     /**
      * Check to see if this <code>HDFHydraDataSource</code> is equal to the object
@@ -2014,8 +2293,8 @@ public class MultiSpectralDataSource extends DataSource {
         return (this == (MultiSpectralDataSource) o);
     }
 
-    public MultiSpectralData getMultiSpectralData() {
-      return multiSpectData;
+    public MultiSpectralData[] getMultiSpectralData() {
+      return new MultiSpectralData[] {multiSpectData_s.get(0), multiSpectData_s.get(1)};
     }
 
     public MultiSpectralData getMultiSpectralData(DataChoice choice) {
@@ -2042,12 +2321,47 @@ public class MultiSpectralDataSource extends DataSource {
        return nadirResolution;
     }
     
+    public ColorTable getDefaultColorTable(DataChoice choice) {
+       MultiSpectralData msd = getMultiSpectralData(choice);
+       if (msd.getParameter().equals("BrightnessTemp")) {
+          return Hydra.invGrayTable;
+       }
+       return Hydra.grayTable;
+    }
+    
+    public String getDescription(DataChoice choice) {
+       MultiSpectralData msd = getMultiSpectralData(choice);
+       if (msd.hasBandNames()) {
+          String bandName = choice.getName();
+          float cntrWvln = msd.getWavenumberFromBandName(bandName);
+          return "("+cntrWvln +")";  
+       }
+       else {
+          return null;
+       }
+    }
+
+// Eventually add this    
+//    public float getNadirResolution(DataChoice choice) throws Exception {
+//       String name = choice.getName();
+//       for (int k=0; k<myDataChoices.size(); k++) {
+//          if (name.equals(((DataChoice)myDataChoices.get(k)).getName())) {
+//             return nadirResolution[k];
+//          }
+//       }
+//       throw new Exception("nadirResolution not specified for: "+name);
+//    }
+    
     public String getSensorName(DataChoice choice) {
        return sensorName;
     }
     
     public boolean getReduceBowtie(DataChoice choice) {
        return reduceBowTie;
+    }
+    
+    public boolean getDoReproject(DataChoice choice) {
+       return doReproject;
     }
     
     public boolean isHyperSpectral() {
@@ -2088,6 +2402,13 @@ public class MultiSpectralDataSource extends DataSource {
               if (multiSpectData != null) {
                 data = multiSpectData.getImage(subset);
                 data = applyProperties(data, null, subset);
+                for (int k=0; k<multiSpectData_s.size(); k++) {
+                   MultiSpectralData msd = multiSpectData_s.get(k);
+                   if (msd != null && msd != multiSpectData) {
+                      msd.setCoordinateSystem(multiSpectData.getCoordinateSystem());
+                      msd.setSwathDomainSet((Linear2DSet)((FlatField)data).getDomainSet());
+                   }
+                }
               }
             }
         } catch (Exception e) {

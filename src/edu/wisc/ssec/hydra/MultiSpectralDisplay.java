@@ -3,8 +3,6 @@ package edu.wisc.ssec.hydra;
 import edu.wisc.ssec.hydra.data.NOAA_SNPP_DataSource;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -101,8 +99,6 @@ public class MultiSpectralDisplay implements DisplayListener {
     // From the incoming dataChoice, fixed for this instance
     private HashMap subset;
     
-    public MultiChannelViewer processor = null;
-
     public MultiSpectralDisplay(final DataChoice dataChoice) 
         throws VisADException, RemoteException 
     {
@@ -130,7 +126,6 @@ public class MultiSpectralDisplay implements DisplayListener {
               MultiDimensionSubset select = (MultiDimensionSubset) dataChoice.getDataSelection();
               HashMap subset = select.getSubset();
               image = data.getImage(waveNumber, subset);
-              image = processRange(image, waveNumber);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -143,22 +138,12 @@ public class MultiSpectralDisplay implements DisplayListener {
         try {
            // Use the initial subset from the init() method
            imageData = data.getImage(channel, subset);
-           imageData = processRange(imageData, channel);
         } catch (Exception e) {
            e.printStackTrace();
         }
         return imageData;
     }
     
-    private FlatField processRange(FlatField fltFld, float value) {
-        if (processor == null) {
-            return fltFld;
-        }
-        else {
-            return processor.processRange(fltFld, value);
-        }
-    }
-
     public LocalDisplay getDisplay() {
         return display;
     }
@@ -297,45 +282,14 @@ public class MultiSpectralDisplay implements DisplayListener {
 
         spectrumRef = new DataReferenceImpl("spectrumRef_"+Hydra.getUniqueID());
         addRef(spectrumRef, Color.WHITE);
-
-        if (data.hasBandNames()) {
-            bandSelectComboBox = new JComboBox(data.getBandNames().toArray());
-            bandSelectComboBox.setSelectedItem(data.init_bandName);
-            bandSelectComboBox.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    String bandName = (String)bandSelectComboBox.getSelectedItem();
-                    if (bandName == null)
-                        return;
-
-                    HashMap<String, Float> bandMap = data.getBandNameMap();
-                    if (bandMap == null)
-                        return;
-
-                    if (!bandMap.containsKey(bandName))
-                        return;
-
-                    setWaveNumber(bandMap.get(bandName));
-                }
-            });
-        }
     }
 
-    public JComboBox getBandSelectComboBox() {
-      return bandSelectComboBox;
-    }
 
     public void displayChanged(final DisplayEvent e) throws VisADException, RemoteException {
         // TODO: write a method like isChannelUpdate(EVENT_ID)? or maybe just 
         // deal with a super long if-statement and put an "OR MOUSE_RELEASED" 
         // up here?
         if (e.getId() == DisplayEvent.MOUSE_RELEASED_CENTER) {
-           /*
-            //float val = (float)display.getDisplayRenderer().getDirectAxisValue(domainType);
-            //setWaveNumber(val);
-            float val = getSelectorValue(channelSelector);
-            waveNumber = val;
-            notifyListener(val);
-            */
         }
         else if (e.getId() == DisplayEvent.MOUSE_PRESSED_LEFT) {
             if (e.getInputEvent().isControlDown()) {
@@ -386,17 +340,6 @@ public class MultiSpectralDisplay implements DisplayListener {
         }
     }
 
-    public boolean hasNullData() {
-        try {
-            synchronized (displayedThings) {
-                for (DataReference ref : displayedThings) {
-                    if (ref.getData() == null)
-                        return true;
-                }
-            }
-        } catch (Exception e) { }
-        return false;
-    }
 
     /** ID of the selector that controls the displayed channel. */
     private final String channelSelector = "chanSelect_"+Hydra.getUniqueID();
@@ -583,23 +526,6 @@ public class MultiSpectralDisplay implements DisplayListener {
         colorMaps.put(thing, constMaps);
         idToRef.put(thing.getName(), thing);
         refreshDisplay();
-    }
-
-    public void reorderDataRefsById(final List<String> dataRefIds) {
-        if (dataRefIds == null)
-            throw new NullPointerException("");
-
-        synchronized (displayedThings) {
-            try {
-                displayedThings.clear();
-                for (String refId : dataRefIds) {
-                    DataReference ref = idToRef.get(refId);
-                    ConstantMap[] color = colorMaps.get(ref);
-                    display.removeReference(ref);
-                    display.addReference(ref, color);
-                }
-            } catch (Exception e) { }
-        }
     }
 
     public boolean setWaveNumber(float val) {

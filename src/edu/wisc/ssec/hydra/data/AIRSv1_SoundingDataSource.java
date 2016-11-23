@@ -1,11 +1,7 @@
 package edu.wisc.ssec.hydra.data;
 
-import edu.wisc.ssec.hydra.data.DataChoice;
-import edu.wisc.ssec.hydra.data.DataSelection;
-import edu.wisc.ssec.hydra.data.DataChoice;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
 import edu.wisc.ssec.adapter.SwathSoundingData;
 import edu.wisc.ssec.adapter.NetCDFFile;
 import edu.wisc.ssec.adapter.MultiDimensionSubset;

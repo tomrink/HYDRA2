@@ -347,18 +347,19 @@ public class FourOperandCombine extends Compute {
        String name = ((RealType)((FunctionType)fld.getType()).getRange()).getName();
        name = name.replace(",",".");
        MapProjection mp = Hydra.getDataProjection(fld);
+       DatasetInfo dsInfo = new DatasetInfo(name, new DataSourceInfo(dateTimeStr));
        
        if (mode == 0 || ImageDisplay.getTarget() == null) {
-          HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr, null);
-          ImageDisplay iDisplay = new ImageDisplay(imageDsp, mp, windowNumber);
+          HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name);
+          ImageDisplay iDisplay = new ImageDisplay(imageDsp, mp, windowNumber, dsInfo, false);
        }
        else if (mode == 1) {
-          ImageDisplay.getTarget().updateImageData(fld, Hydra.grayTable, mp, name, dateTimeStr);
+          ImageDisplay.getTarget().updateImageData(fld, Hydra.grayTable, mp, dsInfo);
        }
        else if (mode == 2) {
           fld = Hydra.makeFlatFieldWithUniqueRange(fld);
-          HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr, null);
-          ImageDisplay.getTarget().addOverlayImage(imageDsp);
+          HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name);
+          ImageDisplay.getTarget().addOverlayImage(imageDsp, dsInfo);
       }
    }
 }

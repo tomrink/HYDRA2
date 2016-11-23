@@ -1,87 +1,57 @@
-/*
- * This file is part of McIDAS-V
- *
- * Copyright 2007-2013
- * Space Science and Engineering Center (SSEC)
- * University of Wisconsin - Madison
- * 1225 W. Dayton Street, Madison, WI 53706, USA
- * http://www.ssec.wisc.edu/mcidas
- * 
- * All Rights Reserved
- * 
- * McIDAS-V is built on Unidata's IDV and SSEC's VisAD libraries, and
- * some McIDAS-V source code is based on IDV and VisAD source code.  
- * 
- * McIDAS-V is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- * 
- * McIDAS-V is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
- */
-
 package edu.wisc.ssec.adapter;
 
-import visad.Set;
 import visad.Gridded2DSet;
 import visad.Gridded2DDoubleSet;
 import visad.Linear2DSet;
 import visad.CoordinateSystem;
-import visad.GridCoordinateSystem;
 import visad.RealTupleType;
 import java.util.HashMap;
 
 public class SwathNavigation implements Navigation  {
 
   public static SwathNavigation createNavigation(SwathAdapter swathAdapter) throws Exception {
-    String product_name = null;
-    SwathNavigation swathNav = null;
+    String product_name;
+    SwathNavigation swathNav;
     
     product_name = (String) ((HashMap)swathAdapter.getMetadata()).get(SwathAdapter.product_name);
 
     if (product_name == null) {
       swathNav = new SwathNavigation(swathAdapter);
     }
-    else if (product_name == "IASI_L1C_xxx") {
+    else if ("IASI_L1C_xxx".equals(product_name)) {
       swathNav = new IASI_L1C_LonLatNavigation(swathAdapter);
     }
-    else if (product_name == "IASI_L1C_ncdf") {
+    else if ("IASI_L1C_ncdf".equals(product_name)) {
       swathNav = new IASI_L1C_NCDF_LonLatNavigation(swathAdapter);    
     }
-    else if (product_name == "IASI_L1C_AAPP") {
+    else if ("IASI_L1C_AAPP".equals(product_name)) {
       swathNav = new IASI_L1C_AAPP_LonLatNavigation(swathAdapter);    
     }
-    else if (product_name == "CrIS_SDR") {
+    else if ("CrIS_SDR".equals(product_name)) {
       swathNav = new CrIS_SDR_LonLatNavigation(swathAdapter);
     }
-    else if (product_name == "AVHR_EPS_xxx_1B") {
+    else if ("AVHR_EPS_xxx_1B".equals(product_name)) {
       swathNav = new AVHR_EPS_GAC_1B_LonLatNavigation(swathAdapter); 
     }
-    else if (product_name == "AVHR_1B_NCDF") {
+    else if ("AVHR_1B_NCDF".equals(product_name)) {
       swathNav = new AVHR_1B_NCDF_LonLatNavigation(swathAdapter); 
     }
-    else if (product_name == "MHS_xxx_1B") {
+    else if ("MHS_xxx_1B".equals(product_name)) {
       swathNav = new MHS_EPS_1B_LonLatNavigation(swathAdapter);
     }
-    else if (product_name == "MHS_1B_NCDF") {
+    else if ("MHS_1B_NCDF".equals(product_name)) {
       swathNav = new MHS_EPS_1B_LonLatNavigation(swathAdapter);
     }
-    else if (product_name == "HIRS_xxx_1B") {
+    else if ("HIRS_xxx_1B".equals(product_name)) {
       swathNav = new HIRS_EPS_1B_LonLatNavigation(swathAdapter);
     }
-    else if (product_name == "HIRS_1B_NCDF") {
+    else if ("HIRS_1B_NCDF".equals(product_name)) {
       swathNav = new HIRS_EPS_1B_LonLatNavigation(swathAdapter);
     }
-    else if (product_name == "AMSA_xxx_1B") {
+    else if ("AMSA_xxx_1B".equals(product_name)) {
       swathNav = new MHS_EPS_1B_LonLatNavigation(swathAdapter);
     }
-    else if (product_name == "AMSA_1B_NCDF") {
+    else if ("AMSA_1B_NCDF".equals(product_name)) {
       swathNav = new MHS_EPS_1B_LonLatNavigation(swathAdapter);
     }
     else {
@@ -120,6 +90,9 @@ public class SwathNavigation implements Navigation  {
   int numDims = 2;
 
   Class type;
+  
+  RangeProcessor lonRngProcessor;
+  RangeProcessor latRngProcessor;
 
   public SwathNavigation(SwathAdapter swathAdapter) throws Exception {
 
@@ -321,20 +294,12 @@ public class SwathNavigation implements Navigation  {
 
   Gridded2DSet createInterpSet() throws Exception {
     Gridded2DSet gset = null;
+    Object lonlatVals = getLonLatValues(geo_start, geo_count, geo_stride);
+    
     if (type == Float.TYPE) {
-      float[] fltValues = reader.getFloatArray(lon_array_name, geo_start, geo_count, geo_stride);
-      HashMap metadata = new HashMap();
-      metadata.put(SwathAdapter.array_name, lon_array_name);
-      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
-      RangeProcessor rangeProcessor = RangeProcessor.createRangeProcessor(reader, metadata);
-      float[] lonValues = rangeProcessor.processRange(fltValues, null);
-      
-      fltValues = reader.getFloatArray(lat_array_name, geo_start, geo_count, geo_stride);
-      metadata = new HashMap();
-      metadata.put(SwathAdapter.array_name, lat_array_name);
-      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
-      rangeProcessor = RangeProcessor.createRangeProcessor(reader, metadata);
-      float[] latValues = rangeProcessor.processRange(fltValues, null);
+
+      float[] lonValues = ((float[][]) lonlatVals)[0];
+      float[] latValues = ((float[][]) lonlatVals)[1];
       
       gset = new Gridded2DSet(RealTupleType.SpatialEarth2DTuple,
                      new float[][] {lonValues, latValues},
@@ -342,19 +307,9 @@ public class SwathNavigation implements Navigation  {
                             null, null, null, false, false);
     }
     else if (type == Double.TYPE) {
-      double[] dblValues = reader.getDoubleArray(lon_array_name, geo_start, geo_count, geo_stride);
-      HashMap metadata = new HashMap();
-      metadata.put(SwathAdapter.array_name, lon_array_name);
-      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
-      RangeProcessor rangeProcessor = RangeProcessor.createRangeProcessor(reader, metadata);
-      double[] lonValues = rangeProcessor.processRange(dblValues, null);
-      
-      dblValues = reader.getDoubleArray(lat_array_name, geo_start, geo_count, geo_stride);
-      metadata = new HashMap();
-      metadata.put(SwathAdapter.array_name, lat_array_name);
-      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
-      rangeProcessor = RangeProcessor.createRangeProcessor(reader, metadata);
-      double[] latValues = rangeProcessor.processRange(dblValues, null);        
+
+      double[] lonValues = ((double[][]) lonlatVals)[0];
+      double[] latValues = ((double[][]) lonlatVals)[1];
       
       gset = new Gridded2DDoubleSet(RealTupleType.SpatialEarth2DTuple,
                     new double[][] {lonValues, latValues},
@@ -362,23 +317,9 @@ public class SwathNavigation implements Navigation  {
                            null, null, null, false, false);
     }
     else if (type == Short.TYPE) {
-      short[] values = reader.getShortArray(lon_array_name, geo_start, geo_count, geo_stride);
-      HashMap metadata = new HashMap();
-      metadata.put(SwathAdapter.array_name, lon_array_name);
-      metadata.put(SwathAdapter.scale_name, scale_name);
-      metadata.put(SwathAdapter.offset_name, offset_name);
-      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
-      RangeProcessor rangeProcessor = RangeProcessor.createRangeProcessor(reader, metadata);
-      float[] lonValues = rangeProcessor.processRange(values, null);
-      
-      values = reader.getShortArray(lat_array_name, geo_start, geo_count, geo_stride);
-      metadata = new HashMap();
-      metadata.put(SwathAdapter.array_name, lat_array_name);
-      metadata.put(SwathAdapter.scale_name, scale_name);
-      metadata.put(SwathAdapter.offset_name, offset_name);
-      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
-      rangeProcessor = RangeProcessor.createRangeProcessor(reader, metadata);
-      float[] latValues = rangeProcessor.processRange(values, null);
+
+      float[] lonValues = ((float[][]) lonlatVals)[0];
+      float[] latValues = ((float[][]) lonlatVals)[1];
 
 
       gset = new Gridded2DSet(RealTupleType.SpatialEarth2DTuple,
@@ -388,23 +329,10 @@ public class SwathNavigation implements Navigation  {
 
     }
     else if (type == Integer.TYPE) {
-      int[] values = reader.getIntArray(lon_array_name, geo_start, geo_count, geo_stride);
-      HashMap metadata = new HashMap();
-      metadata.put(SwathAdapter.array_name, lon_array_name);
-      metadata.put(SwathAdapter.scale_name, scale_name);
-      metadata.put(SwathAdapter.offset_name, offset_name);
-      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
-      RangeProcessor rangeProcessor = RangeProcessor.createRangeProcessor(reader, metadata);
-      float[] lonValues = rangeProcessor.processRange(values, null);
-      
-      values = reader.getIntArray(lat_array_name, geo_start, geo_count, geo_stride);
-      metadata = new HashMap();
-      metadata.put(SwathAdapter.array_name, lat_array_name);
-      metadata.put(SwathAdapter.scale_name, scale_name);
-      metadata.put(SwathAdapter.offset_name, offset_name);
-      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
-      rangeProcessor = RangeProcessor.createRangeProcessor(reader, metadata);
-      float[] latValues = rangeProcessor.processRange(values, null);
+
+
+      float[] lonValues = ((float[][]) lonlatVals)[0];
+      float[] latValues = ((float[][]) lonlatVals)[1];
 
       gset = new Gridded2DSet(RealTupleType.SpatialEarth2DTuple,
                      new float[][] {lonValues, latValues},
@@ -413,8 +341,109 @@ public class SwathNavigation implements Navigation  {
     }
     return gset;
   }
+  
+  public double[] getEarthLocOfDataCoord(int[] coords) throws Exception {
+     double[] lonlat = new double[2];
+     
+     Object obj = getLonLatValues(coords);
+     
+     if (type == Float.TYPE || type == Short.TYPE || type == Integer.TYPE) {
+        lonlat[0] = ((float[][])obj)[0][0];
+        lonlat[1] = ((float[][])obj)[1][0];
+     }
+     else {
+        lonlat[0] = ((double[][])obj)[0][0];
+        lonlat[1] = ((double[][])obj)[1][0];        
+     }
+     
+     return lonlat;
+  }
+  
+  Object getLonLatValues(int[] geo_start) throws Exception {
+     return getLonLatValues(geo_start, new int[] {1,1}, new int[] {1,1});
+  }
+  
+  Object getLonLatValues(int[] geo_start, int[] geo_count, int[] geo_stride) throws Exception {
+    Object lonlatVals = null;
+    
+    if (type == Float.TYPE) {
+      float[] fltValues = reader.getFloatArray(lon_array_name, geo_start, geo_count, geo_stride);
+      HashMap metadata = new HashMap();
+      metadata.put(SwathAdapter.array_name, lon_array_name);
+      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
+      RangeProcessor rangeProcessor = new RangeProcessor(reader, metadata);
+      float[] lonValues = rangeProcessor.processRange(fltValues, null);
+      
+      fltValues = reader.getFloatArray(lat_array_name, geo_start, geo_count, geo_stride);
+      metadata = new HashMap();
+      metadata.put(SwathAdapter.array_name, lat_array_name);
+      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
+      rangeProcessor = new RangeProcessor(reader, metadata);
+      float[] latValues = rangeProcessor.processRange(fltValues, null);
+      
+      lonlatVals = new float[][] {lonValues, latValues};
+    }
+    else if (type == Double.TYPE) {
+      double[] dblValues = reader.getDoubleArray(lon_array_name, geo_start, geo_count, geo_stride);
+      HashMap metadata = new HashMap();
+      metadata.put(SwathAdapter.array_name, lon_array_name);
+      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
+      RangeProcessor rangeProcessor = new RangeProcessor(reader, metadata);
+      double[] lonValues = rangeProcessor.processRange(dblValues, null);
+      
+      dblValues = reader.getDoubleArray(lat_array_name, geo_start, geo_count, geo_stride);
+      metadata = new HashMap();
+      metadata.put(SwathAdapter.array_name, lat_array_name);
+      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
+      rangeProcessor = new RangeProcessor(reader, metadata);
+      double[] latValues = rangeProcessor.processRange(dblValues, null);        
+      
+      lonlatVals = new double[][] {lonValues, latValues};
+    }
+    else if (type == Short.TYPE) {
+      short[] values = reader.getShortArray(lon_array_name, geo_start, geo_count, geo_stride);
+      HashMap metadata = new HashMap();
+      metadata.put(SwathAdapter.array_name, lon_array_name);
+      metadata.put(SwathAdapter.scale_name, scale_name);
+      metadata.put(SwathAdapter.offset_name, offset_name);
+      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
+      RangeProcessor rangeProcessor = new RangeProcessor(reader, metadata);
+      float[] lonValues = rangeProcessor.processRange(values, null);
+      
+      values = reader.getShortArray(lat_array_name, geo_start, geo_count, geo_stride);
+      metadata = new HashMap();
+      metadata.put(SwathAdapter.array_name, lat_array_name);
+      metadata.put(SwathAdapter.scale_name, scale_name);
+      metadata.put(SwathAdapter.offset_name, offset_name);
+      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
+      rangeProcessor = new RangeProcessor(reader, metadata);
+      float[] latValues = rangeProcessor.processRange(values, null);
 
+      lonlatVals = new float[][] {lonValues, latValues};
+    }
+    else if (type == Integer.TYPE) {
+      int[] values = reader.getIntArray(lon_array_name, geo_start, geo_count, geo_stride);
+      HashMap metadata = new HashMap();
+      metadata.put(SwathAdapter.array_name, lon_array_name);
+      metadata.put(SwathAdapter.scale_name, scale_name);
+      metadata.put(SwathAdapter.offset_name, offset_name);
+      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
+      RangeProcessor rangeProcessor = new RangeProcessor(reader, metadata);
+      float[] lonValues = rangeProcessor.processRange(values, null);
+      
+      values = reader.getIntArray(lat_array_name, geo_start, geo_count, geo_stride);
+      metadata = new HashMap();
+      metadata.put(SwathAdapter.array_name, lat_array_name);
+      metadata.put(SwathAdapter.scale_name, scale_name);
+      metadata.put(SwathAdapter.offset_name, offset_name);
+      metadata.put(SwathAdapter.fill_value_name, fillValue_name);
+      rangeProcessor = new RangeProcessor(reader, metadata);
+      float[] latValues = rangeProcessor.processRange(values, null);
 
+      lonlatVals = new float[][] {lonValues, latValues};
+    }     
+     return lonlatVals;
+  }
 
   public static Linear2DSet getNavigationDomain(double data_x_start, double data_x_stop, double data_x_stride,
                                          double data_y_start, double data_y_stop, double data_y_stride,
@@ -484,8 +513,6 @@ public class SwathNavigation implements Navigation  {
       length[geo_xtrack_idx] = (int) ((last[geo_xtrack_idx] - first[geo_xtrack_idx])/stride[geo_xtrack_idx] + 1);
 
       return new Linear2DSet(first[0], last[0], length[0], first[1], last[1], length[1]);
-
   }
-
 
 }

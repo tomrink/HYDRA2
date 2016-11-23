@@ -120,7 +120,7 @@ public class Hydra {
 
    private static int reprojectMode = 0;
    
-   private static boolean doParallel = false;
+   private static boolean doParallel = true;
 
    private static MapProjection sharedMapProj = null;
 
@@ -140,7 +140,11 @@ public class Hydra {
    
    private static int uniqueID = 0;
    
+   private int dataSourceId;
+   
    private DataSourceFactory dataSourceFactory = new DataSourceFactory();
+   
+   public static HashMap<Integer, DataSource> dataSourceMap = new HashMap<>();
 
    public Hydra() {
    }
@@ -160,6 +164,9 @@ public class Hydra {
      sourceDescription = dataSource.getDescription();
      dateTimeStamp = dataSource.getDateTimeStamp();
      numDataSourcesOpened++;
+     
+     dataSourceId = numDataSourcesOpened;
+     dataSourceMap.put(dataSourceId, dataSource);
 
      selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
    }
@@ -181,6 +188,9 @@ public class Hydra {
       dateTimeStamp = dataSource.getDateTimeStamp();
       sourceDescription = dataSource.getDescription();
       numDataSourcesOpened++;
+      
+      dataSourceId = numDataSourcesOpened;
+      dataSourceMap.put(dataSourceId, dataSource);
 
       if (dataSource.isSounder()) {
          multiChannelDisplay = true;
@@ -195,25 +205,27 @@ public class Hydra {
          multiDisplay = false;
       }
 
-      if (dataSource instanceof MultiSpectralDataSource) {
-         createMultiSpectralSelectionComponent();
-      }
-      else {
-         selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
-      }
+      selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
+   }
+   
+   public int getDataSourceId() {
+      return dataSourceId;
+   }
+   
+   public DataSource getDataSource() {
+      return dataSource;
+   }
+   
+   public static DataSource getDataSource(int dataSourceId) {
+      return dataSourceMap.get(dataSourceId);
+   }
+   
+   public static void removeDataSource(DataSource dataSource) {
+      DataSourceFactory.removeDataSource(dataSource);
    }
 
    public String toString() {
      return numDataSourcesOpened+": "+sourceDescription+" "+dateTimeStamp;
-   }
-
-   private void createMultiSpectralSelectionComponent() {
-      if (dataSource.isImager()) {
-         selection = new MultiSpectralSelection((MultiSpectralDataSource)dataSource, this, numDataSourcesOpened);
-      }
-      else {
-         selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
-      }
    }
 
    public void setCursorToWait() {
@@ -337,25 +349,32 @@ public class Hydra {
         ColorTable clrTbl = dataSource.getDefaultColorTable(choice);
         Range range = dataSource.getDefaultColorRange(choice);
         
+        DataSourceInfo datSrcInfo = new DataSourceInfo(sourceDescription, dateTimeStamp, dataSourceId);
+        DatasetInfo dsInfo = new DatasetInfo(fldName, nadirResolution, datSrcInfo);
+        
         if (mode == 0 || ImageDisplay.getTarget() == null) {
             //-- make the displayable
-            HydraRGBDisplayable imageDsp = makeImageDisplayable(image, range, clrTbl, fldName, dateTimeStamp, sourceDescription);
+            HydraRGBDisplayable imageDsp = makeImageDisplayable(image, range, clrTbl, fldName);
+            imageDsp.setUseFastRendering(true);
             displayableToImage.put(imageDsp, swathImage);
-            ImageDisplay iDisplay = new ImageDisplay(imageDsp, mapProj, windowNumber);
+            ImageDisplay iDisplay = new ImageDisplay(imageDsp, mapProj, windowNumber, dsInfo);
         }
         else if (mode == 1) {
-           ImageDisplay.getTarget().updateImageData(image, clrTbl, mapProj, fldName, dateTimeStamp);
+           displayableToImage.put((HydraRGBDisplayable)ImageDisplay.getTarget().getReplaceableImageDisplayable(), swathImage);           
+           ImageDisplay.getTarget().updateImageData(image, clrTbl, mapProj, dsInfo);
         }
         else if (mode == 2) {
            // TODO: Need to understand why this is necessary when doing 'overlay'.  IDV or VisAD issue?
            image = makeFlatFieldWithUniqueRange(image);
-           HydraRGBDisplayable imageDsp = makeImageDisplayable(image, range, clrTbl, fldName, dateTimeStamp, sourceDescription);
+           HydraRGBDisplayable imageDsp = makeImageDisplayable(image, range, clrTbl, fldName);
+           imageDsp.setUseFastRendering(true);
+           displayableToImage.put(imageDsp, swathImage);
            if (dataSource.getOverlayAsMask(choice)) {
               imageDsp.addConstantMap(new ConstantMap(1.0, Display.RenderOrderPriority));
-              ImageDisplay.getTarget().addOverlayImage(imageDsp, true);
+              ImageDisplay.getTarget().addOverlayImage(imageDsp, dsInfo, true);
            }
            else {
-              ImageDisplay.getTarget().addOverlayImage(imageDsp);             
+              ImageDisplay.getTarget().addOverlayImage(imageDsp, dsInfo);             
            }
         }
 
@@ -812,10 +831,6 @@ public class Hydra {
     
 
     public static HydraRGBDisplayable makeImageDisplayable(FlatField image, Range range, ColorTable colorTable, String name) throws VisADException, RemoteException {
-       return makeImageDisplayable(image, range, colorTable, name, null, null);
-    }
-    
-    public static HydraRGBDisplayable makeImageDisplayable(FlatField image, Range range, ColorTable colorTable, String name, String dateTime, String desc) throws VisADException, RemoteException {
 
        RealType imageRangeType =
           (((FunctionType)image.getType()).getFlatRange().getRealComponents())[0];
@@ -824,27 +839,18 @@ public class Hydra {
        HydraRGBDisplayable imageDsp = new HydraRGBDisplayable(name, imageRangeType, null, ColorTable.addAlpha(colorTable), colorTable.getName(), alphaflag, range);
        imageDsp.addConstantMap(new ConstantMap(0.0, Display.RenderOrderPriority));
        imageDsp.setData(image);
-       if (dateTime != null) {
-           imageDsp.setDateTime(dateTime);
-       }
-       if (desc != null) {
-          imageDsp.setDescription(desc);
-       }
     
        return imageDsp;
     }
 
     public static ImageRGBDisplayable makeRGBImageDisplayable(FlatField rgbImage) throws VisADException, RemoteException {
-        return makeRGBImageDisplayable(rgbImage, null, null);
+        return makeRGBImageDisplayable(rgbImage, null);
     }
     
-    public static ImageRGBDisplayable makeRGBImageDisplayable(FlatField rgbImage, String name, String dateTime) throws VisADException, RemoteException {
+    public static ImageRGBDisplayable makeRGBImageDisplayable(FlatField rgbImage, String name) throws VisADException, RemoteException {
        ImageRGBDisplayable rgbDisplayable = new ImageRGBDisplayable(name, grayTable.getTable(), false, rgbImage);
        rgbDisplayable.addConstantMap(new ConstantMap(0.0, Display.RenderOrderPriority));
        rgbDisplayable.setData(rgbImage);
-       if (dateTime != null) {
-          rgbDisplayable.setDateTime(dateTime);
-       }
        
        return rgbDisplayable;
     }
@@ -1190,7 +1196,33 @@ public class Hydra {
 
      return grid;
   }
+  
+  public static FlatField makeGEOSRadiansDomainField(FlatField fltFld, GEOSProjection coordSys) throws VisADException, RemoteException  {
+       Linear2DSet domainSet = (Linear2DSet) fltFld.getDomainSet();
+       MathType rangeType = ((FunctionType)fltFld.getType()).getRange();
+       float[][] rangeVals = fltFld.getFloats(false);
+       Linear1DSet setX = domainSet.getX();
+       Linear1DSet setY = domainSet.getY();
 
+       int lenX = setX.getLength();
+       int lenY = setY.getLength();
+
+       double scaleX = ((GEOSProjection)coordSys).getScaleX();
+       double scaleY = ((GEOSProjection)coordSys).getScaleY();
+       double offsetX = ((GEOSProjection)coordSys).getOffsetX();
+       double offsetY = ((GEOSProjection)coordSys).getOffsetY();
+
+       double firstX = setX.getFirst()*scaleX + offsetX;
+       double firstY = setY.getFirst()*scaleY + offsetY;
+
+       double lastX = setX.getLast()*scaleX + offsetX;
+       double lastY = setY.getLast()*scaleY + offsetY;   
+
+       Linear2DSet dSetRadians = new Linear2DSet(firstX, lastX, lenX, firstY, lastY, lenY);
+       fltFld = new FlatField(new FunctionType(RealTupleType.Generic2D, rangeType), dSetRadians);
+       fltFld.setSamples(rangeVals, false);  
+       return fltFld;
+  }
 
 
    public static MapProjection getDataProjection(FlatField image) throws VisADException, RemoteException {

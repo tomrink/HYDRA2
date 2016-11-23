@@ -1,5 +1,6 @@
 package edu.wisc.ssec.hydra.data;
 
+import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.hydra.Hydra;
 import ucar.unidata.util.Range;
 import java.io.File;
@@ -25,10 +26,13 @@ public class DataSource {
       if (name.equals("Cloud_Mask")) {
          return false;   
       }
-      if (name.equals("Cloud_Phase_Infrared")) {
+      if (name.equals("Cloud_Phase_Infrared") || name.equals("Cloud_Phase")) {
          return false;
       }
       if (name.equals("fire_mask")) {
+         return false;
+      }
+      if (name.equals("Cloud_Type")) {
          return false;
       }
        
@@ -56,11 +60,14 @@ public class DataSource {
       if (name.equals("Cloud_Mask")) {
          rng = new Range(0f-0.5f, 3f+0.5f);
       }
-      if (name.equals("Cloud_Phase_Infrared")) {
+      if (name.equals("Cloud_Phase_Infrared") || name.equals("Cloud_Phase")) {
          rng = new Range(0f-0.5f, 6f+0.5f);
       }
       if (name.equals("fire_mask")) {
          rng = new Range(0f-0.5f, 9f+0.5f);
+      }
+      if (name.equals("Cloud_Type")) {
+         rng = new Range(0f-0.5f, 9+0.5f);
       }
 
       return rng; 
@@ -145,6 +152,12 @@ public class DataSource {
      else if (filename.startsWith("geocatL2_OT")) {
        desc = "OT";
      }
+     else if (filename.startsWith("geocatL1.HIMAWARI-8") || filename.startsWith("geocatL2.HIMAWARI-8")) {
+       desc = "AHI";
+     }
+     else if (filename.contains("SST") && filename.contains("VIIRS_NPP-ACSPO")) {
+       desc = "SST ACSPO";
+     }  
      
      return desc;
    }
@@ -316,11 +329,22 @@ public class DataSource {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyDDD'.'HHmm");
             datetime = sdf.parse(str);           
         }
+        else if (filename.startsWith("geocatL1.HIMAWARI-8") || filename.startsWith("geocatL2.HIMAWARI-8")) {
+            int idx = 20;
+            String str = filename.substring(idx, idx+12);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyyDDD'.'HHmm");
+            datetime = sdf.parse(str);                       
+        }
         else if (filename.startsWith("SEADAS_modis")) {
             int idx = 14;
             String str = filename.substring(idx, idx+14);
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd'_t'HHmm");
             datetime = sdf.parse(str);
+        }
+        else if (filename.contains("SST") && filename.contains("VIIRS_NPP-ACSPO")) {
+           String str = filename.substring(0, 12);
+           SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
+           datetime = sdf.parse(str);
         }
      }
      catch (Exception e) {
@@ -393,6 +417,16 @@ public class DataSource {
       return sortedList;
   }
   
+  public static DataChoice getDataChoiceByName(ArrayList<DataChoice> choices, String name) {
+     for (int i=0; i<choices.size(); i++) {
+        DataChoice choice = choices.get(i);
+        if (choice.getName().equals(name)) {
+           return choice;
+        }
+     }
+     return null;
+  }
+  
   public float getNadirResolution(DataChoice choice) throws Exception {
      return 5000f;
   }
@@ -444,7 +478,7 @@ public class DataSource {
         clrTbl = new ColorTable();
         clrTbl.setTable(palette);
      }
-     else if (name.contains("Cloud_Phase_Infrared")) {
+     else if (name.contains("Cloud_Phase_Infrared") || name.contains("Cloud_Phase")) {
         float[][] palette = new float[][] {{0.0f,0.0f,1.0f,0.8f,0.0f,0.0f,0.0f},
                                            {0.0f,0.0f,0.5f,0.8f,0.8f,0.8f,0.8f},
                                            {0.0f,0.8f,0.5f,0.0f,0.0f,0.0f,0.0f},
@@ -460,13 +494,29 @@ public class DataSource {
         clrTbl = new ColorTable();
         clrTbl.setTable(palette);
      }
-     else if (name.contains("Cloud_Top_Temperature")) {
+     else if (name.contains("Cloud_Type")) {
+        float[][] palette = new float[][] {{0f, 10f, 33f,   41f, 10f,  250f, 246f, 252f, 143f, 244f},
+                                           {0f, 35f, 189f, 249f, 102f, 247f, 13f,  136f, 148f, 40f},
+                                           {0f, 241f, 249f, 46f, 13f,   54f,  27f, 37f, 144f, 250f},
+                       {0.98f, 0.98f, 0.98f, 0.98f, 0.98f, 0.98f, 0.98f, 0.98f, 0.98f, 0.98f}};
+        
+        for (int i=0; i<palette[0].length; i++) palette[0][i] /= 256;
+        for (int i=0; i<palette[1].length; i++) palette[1][i] /= 256;
+        for (int i=0; i<palette[2].length; i++) palette[2][i] /= 256;
+        
+        clrTbl = new ColorTable();
+        clrTbl.setTable(palette);
+     }
+     else if (name.contains("Cloud_Top_Temperature") || name.contains("Cld_Top_Temp")) {
         clrTbl = Hydra.rainbow;
      }
-     else if (name.contains("Cloud_Top_Pressure")) {
+     else if (name.contains("Cloud_Top_Pressure") || name.contains("Cld_Top_Pres")) {
         clrTbl = Hydra.rainbow;
      }
-     else if (name.contains("Sea_Surface_Temperature")) {
+     else if (name.contains("Cld_Top_Hght")) {
+        clrTbl = Hydra.rainbow;
+     }
+     else if (name.contains("Sea_Surface_Temperature") || name.contains("SST")) {
         clrTbl = Hydra.rainbow;
      }
      else if (name.contains("radiances")) {
@@ -507,4 +557,18 @@ public class DataSource {
   public Data getData(DataChoice dataChoice) throws VisADException, RemoteException {
      return getData(dataChoice, null);
   }
+  
+  public MultiSpectralData getMultiSpectralData(DataChoice dataChoice) {
+     return null;
+  }
+  
+  public MultiSpectralData[] getMultiSpectralData() {
+     return null;
+  }
+  
+  /* ???
+  public Data getData(DataView view, DataChoice dataChoice, DataSelection dataSelection) {
+     
+  }
+  */
 }

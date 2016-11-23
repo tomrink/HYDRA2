@@ -290,6 +290,6 @@ public class MultiSpectralSelection extends SelectionAdapter {
     }
 
     public String getSelectedName() {
-      return dataSourceId+":"+"B"+bandName;
+      return dataSourceId+":"+bandName;
     }
 }

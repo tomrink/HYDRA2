@@ -77,14 +77,14 @@ public class AtmSoundingViewer extends HydraDisplay {
 
          ColorTable clrTbl = Hydra.invGrayTable;
 
-         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(image, null, clrTbl, fldName, dateTimeStamp, sourceDescription);
+         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(image, null, clrTbl, fldName);
 
          String str = null;
          if (windowNumber > 0) {
-            imgDisplay = new ImageDisplay(imageDsp, mapProj, windowNumber, false);
+            imgDisplay = new ImageDisplay(imageDsp, mapProj, windowNumber, false, false);
          }
          else {
-            imgDisplay = new ImageDisplay(imageDsp, mapProj, false);
+            imgDisplay = new ImageDisplay(imageDsp, mapProj, false, false);
          }
 
          imgDisplay.onlyOverlayNoReplace = true;

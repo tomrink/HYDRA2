@@ -1,6 +1,5 @@
 package edu.wisc.ssec.hydra.data;
 
-import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Hashtable;

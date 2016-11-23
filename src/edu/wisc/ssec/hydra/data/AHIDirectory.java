@@ -1,12 +1,8 @@
 package edu.wisc.ssec.hydra.data;
 
 import edu.wisc.ssec.hydra.Hydra;
-import edu.wisc.ssec.hydra.data.DataChoice;
-import edu.wisc.ssec.hydra.data.DataGroup;
-import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.ArrayList;
 import visad.VisADException;
@@ -252,7 +248,7 @@ public class AHIDirectory extends DataSource {
           float[][] rngVals = ((FlatField)data).getFloats(false);
           for (int k=0; k<rngVals[0].length; k++) {
              float fval = rngVals[0][k];
-             if (fval < 170f || fval > 310f) {
+             if (fval < 150f || fval > 340f) {
                 rngVals[0][k] = Float.NaN;
              }
           }

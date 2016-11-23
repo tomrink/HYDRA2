@@ -6,6 +6,8 @@ import ucar.unidata.util.Misc;
 
 public class DataSourceFactory {
    
+   private static ArrayList<DataSource> dataSourceList = new ArrayList<>();
+   
    public DataSourceFactory() {
       
    }
@@ -76,7 +78,9 @@ public class DataSourceFactory {
             name.startsWith("MOD35") || name.startsWith("MYD35") || name.contains("mod35") ||
             name.contains("mod14") || name.startsWith("MOD14") || name.startsWith("MYD14") ||
             name.contains("mod28") || name.startsWith("MOD28") || name.startsWith("MYD28") ||
-            name.startsWith("geocatL2_OT") || name.contains("seadas") || name.contains("SEADAS_npp") || name.contains("SEADAS_modis")) 
+            name.startsWith("geocatL2_OT") || name.contains("seadas") || name.contains("SEADAS_npp") || 
+            name.contains("SEADAS_modis") || name.startsWith("geocatL2") ||
+            (name.contains("SST") && name.contains("VIIRS_NPP-ACSPO")) ) 
         {
             dataSource = new MultiDimensionDataSource(Misc.newList(fileNames));
         }
@@ -94,18 +98,27 @@ public class DataSourceFactory {
         }  
         else if (files[0].getName().startsWith("VL1BD")) {
            dataSource = new SIPS_VIIRS_DNB(files);
-        }                
+        }  
+        else if (name.startsWith("clavrx_npp")) {
+           dataSource = new CLAVRX_VIIRS_DataSource(files);
+        }
         else {
           ArrayList<String> sortedList = DataSource.getTimeSortedFilenameList(Misc.newList(files));
           dataSource = new MultiSpectralDataSource(sortedList);
         }
-      
+
+        dataSourceList.add(dataSource);
         return dataSource;      
    }
    
    public DataSource createDataSource(File dir, Class ds) throws Exception {
       DataSource dataSource = (DataSource) ds.getConstructor(new Class[] {File.class}).newInstance(dir);
+      dataSourceList.add(dataSource);
       return dataSource;
+   }
+   
+   public static void removeDataSource(DataSource dataSource) {
+      dataSourceList.remove(dataSource);
    }
    
 }

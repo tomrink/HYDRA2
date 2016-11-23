@@ -50,6 +50,8 @@ import visad.java3d.DisplayRendererJ3D;
 import visad.java3d.GraphicsModeControlJ3D;
 import java.rmi.RemoteException;
 
+import edu.wisc.ssec.hydra.data.DataSource;
+import edu.wisc.ssec.adapter.MultiSpectralData;
 
 
 public class ImageDisplay extends HydraDisplay implements ActionListener, ControlListener {
@@ -73,7 +75,7 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
 
    ReadoutProbe maxMarker = null;
 
-   ArrayList<ReadoutProbe> readoutProbeList = new ArrayList<ReadoutProbe>();
+   ArrayList<ReadoutProbe> readoutProbeList = new ArrayList<>();
 
    Transect transect = null;
 
@@ -85,7 +87,7 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
 
    private double[] currentMatrix = new double[16];
 
-   static ArrayList<ImageDisplay> shareList = new ArrayList<ImageDisplay>();
+   static ArrayList<ImageDisplay> shareList = new ArrayList<>();
 
    static int numImageWindowsCreated = 0;
 
@@ -125,18 +127,18 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
    private JPanel outerPanel;
    private JMenuBar menuBar;
 
-   static private ArrayList<ImageDisplay> imageDisplayList = new ArrayList<ImageDisplay>();
+   static private ArrayList<ImageDisplay> imageDisplayList = new ArrayList<>();
 
    public boolean isTarget = false;
 
    Color dfltBGColor;
 
-   private ArrayList<Depiction> listOfDepictions = new ArrayList<Depiction>();
-   private ArrayList<Depiction> listOfMaskDepictions = new ArrayList<Depiction>();
+   private final ArrayList<Depiction> listOfDepictions = new ArrayList<>();
+   private final ArrayList<Depiction> listOfMaskDepictions = new ArrayList<>();
 
    private int windowNumber = 0;
 
-   private boolean initialized = false;
+   private boolean initialized;
 
    private int whichVisible = 0;
    
@@ -148,6 +150,8 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
 
    public boolean onlyOverlayNoReplace = false;
    
+   public boolean spectraToolEnabled = true;
+   
    private MyColorScale clrScale = null;
 
    public ImageDisplay(MapProjection mapProj) throws VisADException, RemoteException {
@@ -158,7 +162,17 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
        throws VisADException, RemoteException {
      this(imageDsp, mapProj, true);
    }
-
+   
+   public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, int windowNumber, DatasetInfo dsInfo)
+       throws VisADException, RemoteException {
+      this(imageDsp, mapProj, windowNumber, true, dsInfo);
+   }
+   
+   public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, int windowNumber, DatasetInfo dsInfo, boolean spectraToolEnabled)
+       throws VisADException, RemoteException {
+      this(imageDsp, mapProj, windowNumber, true, dsInfo, spectraToolEnabled);
+   }
+   
    public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, int windowNumber)
        throws VisADException, RemoteException {
      this(imageDsp, mapProj, windowNumber, true);
@@ -168,16 +182,38 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
        throws VisADException, RemoteException {
      this(imageDsp, mapProj, 0, createFrame);
    }
+   
+   public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, boolean createFrame, boolean spectraToolEnabled)
+       throws VisADException, RemoteException {
+     this(imageDsp, mapProj, 0, createFrame, spectraToolEnabled);
+   }   
+   
+   public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, int windowNumber, boolean createFrame)
+       throws VisADException, RemoteException {
+     this(imageDsp, mapProj, windowNumber, createFrame, null);
+   }
+   
+   public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, int windowNumber, boolean createFrame, boolean spectraToolEnabled)
+       throws VisADException, RemoteException {
+     this(imageDsp, mapProj, windowNumber, createFrame, null, spectraToolEnabled);
+   }
+
+   public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, int windowNumber, boolean createFrame, DatasetInfo dsInfo)
+       throws VisADException, RemoteException {
+     this(imageDsp, mapProj, windowNumber, createFrame, dsInfo, true);
+   }
 
    // TODO: description should be folded into Displayable
-   public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, int windowNumber, boolean createFrame)
+   public ImageDisplay(DisplayableData imageDsp, MapProjection mapProj, int windowNumber, boolean createFrame, DatasetInfo dsInfo, boolean spectraToolEnabled)
        throws VisADException, RemoteException {
       super();
 
+      this.initialized = false;
       this.mapProjection = mapProj;
       this.lastMapProjection = mapProj;
       this.imageDsp = imageDsp;
       this.windowNumber = windowNumber;
+      this.spectraToolEnabled = spectraToolEnabled;
 
       if (createFrame) {
          share = true;
@@ -226,9 +262,15 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
          RGBCompositeControl rgbCntrl = new RGBCompositeControl(dspMaster, (ImageRGBDisplayable)imageDsp);
          imgCntrl = rgbCntrl;
       }
+      
+      imageDepiction = new Depiction(dspMaster, imageDsp, imgCntrl, dsInfo, false);
+      imageDepiction.setPropertyChangeListener(this);
+      listOfDepictions.add(imageDepiction);     
 
       buildUI(createFrame);
-      updateInfoLabel(imageDsp);
+      if (dsInfo != null) {
+         updateInfoLabel(dsInfo.datSrcInfo.description, dsInfo.datSrcInfo.dateTimeStamp);
+      }
 
       //- once at the beginning to initialize DisplayMaster
       dspMaster.draw();
@@ -357,9 +399,6 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
       buttonPanel.add(resetButton);
       buttonPanel.add(linkButton);
 
-      imageDepiction = new Depiction(dspMaster, imageDsp, imgCntrl, imageDsp.getName(), false);
-      imageDepiction.setPropertyChangeListener(this);
-      listOfDepictions.add(imageDepiction);
       cntrlPanel = new JPanel(new FlowLayout());
       cntrlPanel.setComponentOrientation(java.awt.ComponentOrientation.RIGHT_TO_LEFT);
       
@@ -453,6 +492,13 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
       scatterMenu.addActionListener(this);
       scatterMenu.setToolTipText("this to X-Axis, next to Y-Axis");
       toolsMenu.add(scatterMenu);
+      
+      if (spectraToolEnabled) {
+         JMenuItem profileMenu = new JMenuItem("Spectra");
+         profileMenu.setActionCommand("doSpectra");
+         profileMenu.addActionListener(this);
+         toolsMenu.add(profileMenu);
+      }
 
       JMenu captureMenu = new JMenu("Capture");
       captureMenu.getPopupMenu().setLightWeightPopupEnabled(false);
@@ -513,19 +559,19 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
       this.frame = frame;
    }
 
-   public void addOverlayImage(DisplayableData imageDsp) throws VisADException, RemoteException {
-      addOverlayImage(imageDsp, false);
+   public void addOverlayImage(DisplayableData imageDsp, DatasetInfo dsInfo) throws VisADException, RemoteException {
+      addOverlayImage(imageDsp, dsInfo, false);
    }
    
-   public void addOverlayImage(DisplayableData imageDsp, boolean asMask) throws VisADException, RemoteException {
-      addOverlayImage(imageDsp, null, asMask);
+   public void addOverlayImage(DisplayableData imageDsp, DatasetInfo dsInfo, boolean asMask) throws VisADException, RemoteException {
+      addOverlayImage(imageDsp, null, dsInfo, asMask);
    }
    
-   public void addOverlayImage(DisplayableData imageDsp, Depiction imgDepiction) throws VisADException, RemoteException {
-      addOverlayImage(imageDsp, imgDepiction, false);
-   }
-
    public void addOverlayImage(DisplayableData imageDsp, Depiction imgDepiction, boolean asMask) throws VisADException, RemoteException {
+      addOverlayImage(imageDsp, imgDepiction, null, asMask);
+   }
+   
+   public void addOverlayImage(DisplayableData imageDsp, Depiction imgDepiction, DatasetInfo dsInfo, boolean asMask) throws VisADException, RemoteException {
 
       ((DisplayImpl)dspMaster.getDisplay()).setOnlyTransformForThis(true);
       dspMaster.addDisplayable(imageDsp);
@@ -542,10 +588,10 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
             imgCntrl = new RGBCompositeControl(dspMaster, (ImageRGBDisplayable)imageDsp);
          }
          if (!asMask) {
-            imgDepiction = new Depiction(dspMaster, imageDsp, imgCntrl, imageDsp.getName());
+            imgDepiction = new Depiction(dspMaster, imageDsp, imgCntrl, dsInfo);
          }
          else {
-            imgDepiction = new Depiction(dspMaster, imageDsp, imgCntrl, imageDsp.getName(), true, true);
+            imgDepiction = new Depiction(dspMaster, imageDsp, imgCntrl, dsInfo, true, true);
          }
       }
       imgDepiction.setPropertyChangeListener(this);
@@ -712,6 +758,10 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
    public HydraRGBDisplayable getImageDisplayable() {
      return (HydraRGBDisplayable) listOfDepictions.get(whichVisible).getDisplayableData();
    }
+   
+   public DisplayableData getReplaceableImageDisplayable() {
+      return imageDsp;
+   }
 
    public String getName() {
       return listOfDepictions.get(whichVisible).getName();
@@ -754,50 +804,33 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
       }
    }
 
-   public void updateImageData(FlatField image, String desc) {
-      try {
-         updateImageData(image);
-      }
-      catch (Exception e) {
-         e.printStackTrace();
-      }
-   }
-
-   
-   public void updateImageRGBCompositeData(FlatField image, MapProjection mapProj) {
-       updateImageRGBCompositeData(image, mapProj, null);
-   }
-   
-   public void updateImageRGBCompositeData(FlatField image, MapProjection mapProj, String dateTimeStr) {
+   public void updateImageRGBCompositeData(FlatField image, MapProjection mapProj, String imgName, DatasetInfo dsInfo) {
       try {
          ((ImageRGBDisplayable)imageDsp).setColorTupleType(
                 (RealTupleType)((FunctionType)image.getType()).getRange());
+         
          if (!getMapProjection().equals(mapProj)) {
             setMapProjection(mapProj);
          }
          imgCntrl.reset();
          imageDsp.setData(image);
-         if (dateTimeStr != null) {
-             ((ImageRGBDisplayable)imageDsp).setDateTime(dateTimeStr);
-         }
          
          if (getWhichVisible() == 0) {
+              updateInfoLabel(dsInfo);
             for (int k=0; k<readoutProbeList.size(); k++) {
                readoutProbeList.get(k).updateData(image);
             }
             setMinMaxMarkers(imageDsp);
             updateMinMaxMarkers(imageDsp);
          }
+         
+         imageDepiction.setName(dsInfo.name);
       } catch (Exception e) {
         e.printStackTrace();
       }
    }
 
-   public void updateImageData(FlatField image, ColorTable clrTbl, MapProjection mapProj, String imgName) {
-       updateImageData(image, clrTbl, mapProj, imgName, null);
-   }
-   
-   public void updateImageData(FlatField image, ColorTable clrTbl, MapProjection mapProj, String imgName, String dateTimeStr) {
+   public void updateImageData(FlatField image, ColorTable clrTbl, MapProjection mapProj, DatasetInfo dsInfo) {
        try {
 
           if (!getMapProjection().equals(mapProj)) {
@@ -822,12 +855,9 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
           }
 
           imageDsp.setData(image);
-          if (dateTimeStr != null) {
-              ((HydraRGBDisplayable)imageDsp).setDateTime(dateTimeStr);
-          }
           
           if (whichVisible == 0) {
-             updateInfoLabel(imageDsp);
+             updateInfoLabel(dsInfo);
              for (int k=0; k<readoutProbeList.size(); k++) {
                 readoutProbeList.get(k).updateData(image);
              }
@@ -839,7 +869,7 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
              transect.updateData(image);
           }
 
-          imageDepiction.setName(imgName);
+          imageDepiction.setName(dsInfo.name);
        }
        catch (Exception e) {
           e.printStackTrace();
@@ -926,19 +956,13 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
       maxMarker.updateData(image, maxLoc);
    }
    
-   public void updateInfoLabel(DisplayableData imageDsp) {
-      String dtStr = null;
-      String str = null;
-      
-      if (imageDsp instanceof HydraRGBDisplayable) {
-          str = ((HydraRGBDisplayable)imageDsp).getDescription();
-          dtStr = ((HydraRGBDisplayable)imageDsp).getDateTimeStr();
-      }
-      else if (imageDsp instanceof ImageRGBDisplayable) {
-          dtStr = ((ImageRGBDisplayable)imageDsp).getDateTimeStr();
-      }
-      
-      infoLabel.setDescAndDateTime(str, dtStr);
+   public void updateInfoLabel(String sourceDescription, String dateTimeStr) {
+      infoLabel.setDescAndDateTime(sourceDescription, dateTimeStr);
+   }
+   
+   public void updateInfoLabel(DatasetInfo info) {
+      DataSourceInfo datSrcInfo = info.datSrcInfo;
+      infoLabel.setDescAndDateTime(datSrcInfo.description, datSrcInfo.dateTimeStamp);
    }
 
    public EarthLocationTuple[] getMinMaxLocation(FlatField image) throws VisADException, RemoteException {
@@ -1001,7 +1025,8 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
    }  
 
    public void actionPerformed(ActionEvent e) {
-     if (e.getActionCommand().equals("doTransect")) {
+     String cmd = e.getActionCommand();
+     if (cmd.equals("doTransect")) {
        try {
          if (transect == null) { // only one transect per image display
             transect = new Transect(this, listOfDepictions.get(getWhichVisible()).getDisplayableData());
@@ -1014,14 +1039,26 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
          exc.printStackTrace();
        }
      }
-     if (e.getActionCommand().equals("doScatter")) {
+     if (cmd.equals("doScatter")) {
        Scatter.makeScatterDisplay(this);
      }
+     if (cmd.equals("doSpectra")) {
+        int datSrcId = listOfDepictions.get(getWhichVisible()).getDatasetInfo().datSrcInfo.dataSourceId;
+        String fldName = listOfDepictions.get(getWhichVisible()).getDatasetInfo().name;
+        DataSource datSrc = Hydra.getDataSource(datSrcId);
+        MultiSpectralData[] msd = datSrc.getMultiSpectralData();
+        try {
+           new SpectraDisplay(probe.getEarthLocationRef(), msd, getLocationOnScreen(), getImageDisplayable(), fldName);
+        }
+        catch (Exception exc) {
+           exc.printStackTrace();
+        }
+     }
      // TODO: combine jpeg,kml, others into a common widget
-     if (e.getActionCommand().equals("captureToJPEG")) {
+     if (cmd.equals("captureToJPEG")) {
          DisplayCapture.captureJPEG(frame, mapProjDsp);
      }
-     if (e.getActionCommand().equals("captureToKML")) {
+     if (cmd.equals("captureToKML")) {
         final MapProjection lastMapProj = getMapProjection();
         try {
            new DisplayCapture(frame, this);
@@ -1033,7 +1070,7 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
            exc.printStackTrace();
         }
      }
-     if (e.getActionCommand().equals("coastlines")) {
+     if (cmd.equals("coastlines")) {
         if (maplines.getState()) {
            toggleMapBoundaries(true);
         } 
@@ -1041,7 +1078,7 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
            toggleMapBoundaries(false);
         }
      }
-     if (e.getActionCommand().equals("minmax")) {
+     if (cmd.equals("minmax")) {
         if (minmaxItem.getState()) {
            toggleMinMax(true);
         }
@@ -1049,7 +1086,7 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
            toggleMinMax(false);
         }
      }
-     if (e.getActionCommand().equals("probe")) {
+     if (cmd.equals("probe")) {
         if (probeItem.getState()) {
            toggleProbeReadout(true);
         }
@@ -1057,7 +1094,7 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
            toggleProbeReadout(false);
         }
      }
-     if (e.getActionCommand().equals("colorScale")) {
+     if (cmd.equals("colorScale")) {
         if (clrScaleItem.getState()) {
            addColorScale();
         }
@@ -1338,7 +1375,7 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
                }
             }
             updateMinMaxMarkers(imageDsp);
-            updateInfoLabel(imageDsp);
+            updateInfoLabel(depiction.getDatasetInfo());
          }
          if (transect != null) {
             transect.updateData(ff);

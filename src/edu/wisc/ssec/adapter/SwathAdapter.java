@@ -1,44 +1,17 @@
-/*
- * This file is part of McIDAS-V
- *
- * Copyright 2007-2013
- * Space Science and Engineering Center (SSEC)
- * University of Wisconsin - Madison
- * 1225 W. Dayton Street, Madison, WI 53706, USA
- * http://www.ssec.wisc.edu/mcidas
- * 
- * All Rights Reserved
- * 
- * McIDAS-V is built on Unidata's IDV and SSEC's VisAD libraries, and
- * some McIDAS-V source code is based on IDV and VisAD source code.  
- * 
- * McIDAS-V is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- * 
- * McIDAS-V is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
- */
-
 package edu.wisc.ssec.adapter;
 
 import java.util.HashMap;
 
 import visad.CoordinateSystem;
 import visad.FunctionType;
+import visad.Linear1DSet;
 import visad.Linear2DSet;
 import visad.RealTupleType;
 import visad.RealType;
 import visad.Set;
 import visad.Unit;
 
-public class SwathAdapter extends MultiDimensionAdapter {
+public class SwathAdapter extends GeoSfcAdapter {
 
       String nav_type = "Interp";
       boolean lon_lat_trusted = true;
@@ -92,10 +65,12 @@ public class SwathAdapter extends MultiDimensionAdapter {
       private MultiDimensionReader geoReader;
 
       private Linear2DSet swathDomain;
-
+      
       protected Object last_subset;
 
       int default_stride = 1;
+      
+      private DomainSetCache domainSetCache;
 
       public static HashMap getEmptySubset() {
         HashMap<String, double[]> subset = new HashMap<String, double[]>();
@@ -128,9 +103,6 @@ public class SwathAdapter extends MultiDimensionAdapter {
           metadata.put(multiScaleDimensionIndex, null);
           metadata.put(byteSegmentIndexName, null);
     	  return metadata;
-      }
-
-      public SwathAdapter() {
       }
 
       public SwathAdapter(MultiDimensionReader reader, HashMap metadata, MultiDimensionReader geoReader) {
@@ -221,6 +193,7 @@ public class SwathAdapter extends MultiDimensionAdapter {
           default_stride = (default_stride/2)*2;
         }
         
+        domainSetCache = new DomainSetCache();
       }
 
       protected void setLengths() {
@@ -255,43 +228,35 @@ public class SwathAdapter extends MultiDimensionAdapter {
       }
 
       public Set makeDomain(Object subset) throws Exception {
-
+         
         double[] first = new double[2];
         double[] last = new double[2];
         int[] length = new int[2];
-
-        HashMap<String, double[]> domainSubset = new HashMap<String, double[]>();
-        domainSubset.put(track_name, (double[]) ((HashMap)subset).get(track_name));
-        domainSubset.put(xtrack_name, (double[]) ((HashMap)subset).get(xtrack_name));
-
-        domainSubset.put(track_name, new double[] {0,0,0});
-        domainSubset.put(xtrack_name, new double[] {0,0,0});
 
         // compute coordinates for the Linear2D domainSet
         for (int kk=0; kk<2; kk++) {
           RealType rtype = domainRealTypes[kk];
           String name = rtype.getName();
           double[] coords = (double[]) ((HashMap)subset).get(name);
-          // replace with integral swath coordinates
+          // replace (in place) with integral swath coordinates
           coords[0] = Math.ceil(coords[0]);
           coords[1] = Math.floor(coords[1]);
+          
           first[kk] = coords[0];
-          last[kk] = coords[1];
+          last[kk] =  coords[1];
           length[kk] = (int) ((last[kk] - first[kk])/coords[2] + 1);
           last[kk] = first[kk] + (length[kk]-1)*coords[2];
-
-          double[] new_coords = domainSubset.get(name);
-          new_coords[0] = first[kk];
-          new_coords[1] = last[kk];
-          new_coords[2] = coords[2];
         }
-        last_subset = subset;
 
-        Linear2DSet domainSet = new Linear2DSet(first[0], last[0], length[0], first[1], last[1], length[1]);
-        CoordinateSystem cs = navigation.getVisADCoordinateSystem(domainSet, subset);
-
-        RealTupleType domainTupType = new RealTupleType(domainRealTypes[0], domainRealTypes[1], cs, null);
-        domainSet = new Linear2DSet(domainTupType, first[0], last[0], length[0], first[1], last[1], length[1]);
+        Linear2DSet domainSetnoCS = new Linear2DSet(first[0], last[0], length[0], first[1], last[1], length[1]);
+        
+        Linear2DSet domainSet = domainSetCache.get(domainSetnoCS);
+        if (domainSet == null) {
+           CoordinateSystem coordSys = navigation.getVisADCoordinateSystem(domainSetnoCS, subset);
+           RealTupleType domainTupType = new RealTupleType(domainRealTypes[0], domainRealTypes[1], coordSys, null);
+           domainSet = new Linear2DSet(domainTupType, first[0], last[0], length[0], first[1], last[1], length[1]);
+           domainSetCache.put(domainSet);
+        }
 
         return domainSet;
       }
@@ -304,8 +269,12 @@ public class SwathAdapter extends MultiDimensionAdapter {
         return domainRealTypes;
       }
 
-      public Linear2DSet getSwathDomain() {
+      public Linear2DSet getDatasetDomain() {
         return swathDomain;
+      }
+      
+      public void setDomainSet(Linear2DSet domSet) {
+         domainSetCache.put(domSet);
       }
       
       public boolean spatialEquals(Object last_subset, Object subset) {
@@ -350,4 +319,58 @@ public class SwathAdapter extends MultiDimensionAdapter {
         subset.put("XTrack", coords);
         return subset;
       }
+      
+      public static boolean dimsEquals(Linear2DSet domA, Linear2DSet domB) {
+
+         Linear1DSet lsetA0 = domA.getLinear1DComponent(0);
+         Linear1DSet lsetA1 = domA.getLinear1DComponent(1);
+         double firstA0 = lsetA0.getFirst();
+         double lastA0 = lsetA0.getLast();
+         double stepA0 = lsetA0.getStep();
+         double firstA1 = lsetA1.getFirst();
+         double lastA1 = lsetA1.getLast();
+         double stepA1 = lsetA1.getStep(); 
+
+         Linear1DSet lsetB0 = domB.getLinear1DComponent(0);
+         Linear1DSet lsetB1 = domB.getLinear1DComponent(1);
+         double firstB0 = lsetB0.getFirst();
+         double lastB0 = lsetB0.getLast();
+         double stepB0 = lsetB0.getStep();
+         double firstB1 = lsetB1.getFirst();
+         double lastB1 = lsetB1.getLast();
+         double stepB1 = lsetB1.getStep(); 
+
+         if (firstA0 != firstB0 || firstA1 != firstB1 || lastA0 != lastB0 || lastA1 != lastB1 ||
+             stepA0 != stepB0 || stepA1 != stepB1) {
+            return false;
+         }
+
+         return true;
+      }
+}
+
+class DomainSetCache {
+   Linear2DSet domainSet0;
+   Linear2DSet domainSet1;
+   
+   void put(Linear2DSet domSet) {
+      if (domainSet0 == null || SwathAdapter.dimsEquals(domSet, domainSet0)) {
+         domainSet0 = domSet;
+      }
+      else {
+         domainSet1 = domSet;
+      }
+   }
+   
+   Linear2DSet get(Linear2DSet domSet) {
+      if (domainSet0 != null && SwathAdapter.dimsEquals(domainSet0, domSet)) {
+         return domainSet0;
+      }
+      else if (domainSet1 != null && SwathAdapter.dimsEquals(domainSet1, domSet)) {
+         return domainSet1;
+      }
+      else {
+         return null;
+      }
+   }
 }

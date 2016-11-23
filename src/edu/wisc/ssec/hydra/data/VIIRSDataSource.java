@@ -1,7 +1,8 @@
 package edu.wisc.ssec.hydra.data;
 
+import edu.wisc.ssec.adapter.MultiSpectralAggr;
+import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.hydra.Hydra;
-import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +13,10 @@ import visad.Data;
 import visad.FlatField;
 import java.rmi.RemoteException;
 import ucar.unidata.util.ColorTable;
+import visad.CoordinateSystem;
+import visad.FunctionType;
+import visad.Linear2DSet;
+import visad.RealTupleType;
 
 
 public class VIIRSDataSource extends DataSource {
@@ -60,7 +65,20 @@ public class VIIRSDataSource extends DataSource {
    DataGroup catDNB = new DataGroup("DNB-Band");
 
    String dateTimeStamp = null;
-
+   
+   ArrayList<MultiSpectralData> Iemis = new ArrayList<>();
+   ArrayList<MultiSpectralData> Irefl = new ArrayList<>();
+   ArrayList<MultiSpectralData> Memis = new ArrayList<>();
+   ArrayList<MultiSpectralData> Mrefl = new ArrayList<>();
+   
+   MultiSpectralData IemisMSD;
+   MultiSpectralData MemisMSD;
+   MultiSpectralData IreflMSD;
+   MultiSpectralData MreflMSD;
+   
+   HashMap<DataChoice, MultiSpectralData> msdMap = new HashMap();
+   MultiSpectralData multiSpectData;
+   
    public VIIRSDataSource(File directory) {
      this(directory.listFiles());
    }
@@ -114,6 +132,9 @@ public class VIIRSDataSource extends DataSource {
           catch (Exception e) {
              e.printStackTrace();
           }
+          
+          DataGroup cat = (k <= 4) ? catI : catM;
+          if (k == 21) cat = catDNB;          
 
           
           List dataChoices = datasource.getDataChoices();
@@ -129,15 +150,47 @@ public class VIIRSDataSource extends DataSource {
             if (bands[k].equals("SVDNB") && name.contains("Radiance")) {
               targetDataChoice = choice;
             }
+            if (name.contains("Reflectance")) {
+               if (cat == (catI)) {
+                  Irefl.add(datasource.getMultiSpectralData(choice));
+               }
+               else if (cat == (catM)) {
+                  Mrefl.add(datasource.getMultiSpectralData(choice));     
+               }
+            }
+            else if (name.contains("BrightnessTemperature")) {
+               if (cat == (catI)) {
+                  Iemis.add(datasource.getMultiSpectralData(choice));
+               }
+               else if (cat == (catM)) {
+                  Memis.add(datasource.getMultiSpectralData(choice));
+               }
+            }
           }
 
-          DataGroup cat = (k <= 4) ? catI : catM;
-          if (k == 21) cat = catDNB;
 
           doMakeDataChoice(bandNames[k], k, num, targetDataChoice, cat);
 
           num++;
         }
+      }
+      
+      try {
+         if (Irefl.size() > 0) {
+            IreflMSD = new MultiSpectralAggr((MultiSpectralData[]) Irefl.toArray(new MultiSpectralData[1]));
+         }
+         if (Iemis.size() > 0) {
+            IemisMSD = new MultiSpectralAggr((MultiSpectralData[]) Iemis.toArray(new MultiSpectralData[1]));
+         }
+         if (Mrefl.size() > 0) {
+            MreflMSD = new MultiSpectralAggr((MultiSpectralData[]) Mrefl.toArray(new MultiSpectralData[1]));
+         }
+         if (Memis.size() > 0) {
+            MemisMSD = new MultiSpectralAggr((MultiSpectralData[]) Memis.toArray(new MultiSpectralData[1]));  
+         }
+      }
+      catch (Exception e) {
+         e.printStackTrace();
       }
 
    }
@@ -222,9 +275,10 @@ public class VIIRSDataSource extends DataSource {
    }
 
    public Data getData(DataChoice dataChoice, DataSelection dataSelection)
-            throws VisADException, RemoteException 
+            throws VisADException, RemoteException
     {
        String name = dataChoice.getName();
+       DataGroup datGrp = dataChoice.getGroup();
        name = bandNameToBandID.get(name);
        NOAA_VIIRS_DataSource datasource = bandIDtoDataSource.get(name);
        List dataChoices = datasource.getDataChoices();
@@ -245,6 +299,29 @@ public class VIIRSDataSource extends DataSource {
        targetDataChoice.setDataSelection(dataChoice.getDataSelection());
        Data data = datasource.getData(targetDataChoice);
        
+       CoordinateSystem cs = ((RealTupleType) ((FunctionType)data.getType()).getDomain()).getCoordinateSystem();
+       
+       if (datGrp.equals(catM)) {
+          if (MreflMSD != null) {
+             MreflMSD.setCoordinateSystem(cs);
+             MreflMSD.setSwathDomainSet((Linear2DSet)((FlatField)data).getDomainSet());
+          }
+          if (MemisMSD != null) {
+             MemisMSD.setCoordinateSystem(cs);
+             MemisMSD.setSwathDomainSet((Linear2DSet)((FlatField)data).getDomainSet());
+          }
+       }
+       else if (datGrp.equals(catI)) {
+          if (IreflMSD != null) {
+             IreflMSD.setCoordinateSystem(cs);
+             IreflMSD.setSwathDomainSet((Linear2DSet)((FlatField)data).getDomainSet());
+          }
+          if (IemisMSD != null) {
+             IemisMSD.setCoordinateSystem(cs);
+             IemisMSD.setSwathDomainSet((Linear2DSet)((FlatField)data).getDomainSet());
+          }
+       }
+       
        //-  post process for DNB: replace radiance with log10(radiance)
        if (dataChoice.getName().equals("DNB")) {
           float[][] rngVals = ((FlatField)data).getFloats(false);
@@ -259,6 +336,25 @@ public class VIIRSDataSource extends DataSource {
           }
        }
        return data;
+    }
+   
+    public MultiSpectralData[] getMultiSpectralData() {
+       ArrayList<MultiSpectralData> list = new ArrayList();
+       
+       if (IreflMSD != null) {
+          list.add(IreflMSD);
+       }
+       if (MreflMSD != null) {
+          list.add(MreflMSD);
+       }
+       if (IemisMSD != null) {
+          list.add(IemisMSD);
+       }
+       if (MemisMSD != null) {
+          list.add(MemisMSD);
+       }
+       
+       return list.toArray(new MultiSpectralData[1]);
     }
 
 }

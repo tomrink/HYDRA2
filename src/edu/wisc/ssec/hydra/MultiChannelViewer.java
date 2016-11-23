@@ -22,7 +22,6 @@ import java.awt.event.WindowEvent;
 import java.util.HashMap;
 
 import edu.wisc.ssec.adapter.MultiSpectralData;
-import edu.wisc.ssec.adapter.ATMS_SDR_Utility;
 
 import visad.*;
 import visad.georef.LatLonTuple;
@@ -75,7 +74,6 @@ public class MultiChannelViewer extends HydraDisplay {
          this.dataSourceId = dataSourceId;
 
          multiSpectDsp = new MultiSpectralDisplay((DataChoice) dataChoice, initWaveNumber, xMapRange, yMapRange);
-         multiSpectDsp.processor = this;
          initXmapScale = (float) multiSpectDsp.getXmapScale();
          multiSpectDsp.showChannelSelector();
          final MultiSpectralDisplay msd = multiSpectDsp;
@@ -87,16 +85,16 @@ public class MultiChannelViewer extends HydraDisplay {
 
          ColorTable clrTbl = Hydra.invGrayTable;
 
-         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(image, null, clrTbl, fldName, dateTimeStamp, sourceDescription);
+         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(image, null, clrTbl, fldName);
 
          baseDescription = sourceDescription+" "+dateTimeStamp;
          String str = baseDescription+" "+Float.toString(multiSpectDsp.getWaveNumber())+" cm-1";
 
          if (windowNumber > 0) {
-            imgDisplay = new ImageDisplay(imageDsp, mapProj, windowNumber, false);
+            imgDisplay = new ImageDisplay(imageDsp, mapProj, windowNumber, false, false);
          }
          else {
-            imgDisplay = new ImageDisplay(imageDsp, mapProj, false);
+            imgDisplay = new ImageDisplay(imageDsp, mapProj, false, false);
          }
          imgDisplay.onlyOverlayNoReplace = true;
          final ImageDisplay iDisplay = imgDisplay;
@@ -404,7 +402,7 @@ public class MultiChannelViewer extends HydraDisplay {
                      wavenumbox.setText(txt);
                      FlatField image = multiSpectDsp.getImageData();
                      image = reproject(image);
-                     imgDisplay.updateImageData(image, baseDescription+" "+txt+" cm-1");
+                     imgDisplay.updateImageData(image);
                      imgDisplay.getDepiction().setName(txt);
                   }
                   else {
@@ -420,7 +418,7 @@ public class MultiChannelViewer extends HydraDisplay {
                 float waveNumber = multiSpectDsp.getWaveNumber();
                 String txt = Float.toString(waveNumber);
                 wavenumbox.setText(txt);
-                imgDisplay.updateImageData(image, baseDescription+" "+txt+" cm-1");
+                imgDisplay.updateImageData(image);
                 imgDisplay.getDepiction().setName(txt);
             }
          };
@@ -450,26 +448,6 @@ public class MultiChannelViewer extends HydraDisplay {
 
        return image;
     }
-    
-    FlatField processRange(FlatField image, Float waveNum) {
-       try {
-          if (sourceDescription.contains("ATMS")) {
-              float[][] range = image.getFloats(false);
-              Linear2DSet dset = (Linear2DSet) image.getDomainSet();
-              Linear1DSet fovSet = dset.getLinear1DComponent(0);
-              int fovStart = (int) fovSet.getFirst();
-              int fovStop = (int) fovSet.getLast();
-              float[] new_range = ATMS_SDR_Utility.applyLimbCorrection(range[0], waveNum, fovStart, fovStop);
-              image.setSamples(new float[][] {new_range}, false);
-          }
-       }
-       catch (Exception e) {
-          e.printStackTrace();
-       }
-       
-       return image;
-    }
-
 }
 
 class ProbeLocationChange extends CellImpl {

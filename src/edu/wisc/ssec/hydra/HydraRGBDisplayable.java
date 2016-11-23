@@ -123,10 +123,6 @@ public class HydraRGBDisplayable extends DisplayableData {
     
     public DataRenderer theRenderer;
     
-    private String dateTimeStr = " ";
-    
-    private String description = " ";
-
     /**
      * Constructs from a name for the Displayable and the type of the
      * RGB parameter.
@@ -198,22 +194,6 @@ public class HydraRGBDisplayable extends DisplayableData {
         if (selectRealType != null) {
           //setSelectMaps();
         }
-    }
-    
-    public void setDateTime(String dateTimeStr) {
-        this.dateTimeStr = dateTimeStr;
-    }
-    
-    public String getDateTimeStr() {
-        return dateTimeStr;
-    }
-    
-    public void setDescription(String desc) {
-       this.description = desc;
-    }
-
-    public String getDescription() {
-       return this.description;
     }
     
     /**

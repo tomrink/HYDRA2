@@ -1,34 +1,5 @@
-/*
- * This file is part of McIDAS-V
- *
- * Copyright 2007-2013
- * Space Science and Engineering Center (SSEC)
- * University of Wisconsin - Madison
- * 1225 W. Dayton Street, Madison, WI 53706, USA
- * http://www.ssec.wisc.edu/mcidas
- * 
- * All Rights Reserved
- * 
- * McIDAS-V is built on Unidata's IDV and SSEC's VisAD libraries, and
- * some McIDAS-V source code is based on IDV and VisAD source code.  
- * 
- * McIDAS-V is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- * 
- * McIDAS-V is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
- */
-
 package edu.wisc.ssec.adapter;
 import visad.Set;
-import visad.Data;
 import java.util.Date;
 import java.lang.Math;
 
@@ -263,5 +234,37 @@ public class MODIS_L1B_Utility {
       }
       return values;
   }
-
+  
+  public static float[] reflectanceCorrForSolzen(float[] longitude, float[] latitude, Date date) {
+      SunRelativePosition calculator = new SunRelativePosition();
+      calculator.setDate(date);
+      float[] values = new float[longitude.length];
+      for (int k=0; k<longitude.length; k++) {
+          double lon = longitude[k];
+          double lat = latitude[k];
+          calculator.setCoordinate(lon, lat);
+          double elev = calculator.getElevation();
+          double solzen = 90.0 - elev;
+          values[k] = 1/((float)Math.cos((Math.PI/180.0)*solzen));
+      }
+      return values;
+  }
+  
+  public static float[] reflectanceCorrForSolzen(float[] values, float longitude, float latitude, Date date) {
+      SunRelativePosition calculator = new SunRelativePosition();
+      calculator.setDate(date);
+      for (int k=0; k<values.length; k++) {
+          double lon = longitude;
+          double lat = latitude;
+          if (Double.isNaN(lon) || Double.isNaN(lat)) {
+              continue;
+          }
+          calculator.setCoordinate(longitude, latitude);
+          double elev = calculator.getElevation();
+          double solzen = 90.0 - elev;
+          float refl = values[k];
+          values[k] = refl/((float)Math.cos((Math.PI/180.0)*solzen));
+      }
+      return values;
+  }
 }

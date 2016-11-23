@@ -1,17 +1,13 @@
 package edu.wisc.ssec.adapter;
 
 import visad.CoordinateSystem;
-import visad.GridCoordinateSystem;
 import visad.VisADException;
 import visad.RealTupleType;
 import visad.RealType;
 import visad.Linear2DSet;
 import visad.Gridded2DSet;
 import visad.Gridded1DSet;
-import visad.Linear1DSet;
-import visad.Unit;
 import visad.Set;
-import visad.georef.MapProjection;
 import java.awt.geom.Rectangle2D;
 
 import visad.data.hdfeos.LambertAzimuthalEqualArea;

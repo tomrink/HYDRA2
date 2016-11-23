@@ -25,7 +25,6 @@ public class Depiction {
    DepictionControl clrCntrl;
    DisplayableData imageDsp;
    String name;
-   String longName;
    String dateTimeStr;
    String tooltip = "options for this image";
    JComponent parentComponent;
@@ -40,6 +39,7 @@ public class Depiction {
    // This depiction can not be removed by the user
    boolean isRemovable = true;
 
+   // Always visible unless checkbox is deselected
    boolean isMask = false;
 
    JCheckBox visToggle = new JCheckBox();
@@ -50,16 +50,21 @@ public class Depiction {
 
    boolean isVisible = true;
    
+   DatasetInfo dsInfo = null;
+   
 
    Depiction(DisplayMaster dspMaster, DisplayableData imageDsp, String name, boolean isRemovable, boolean isMask) {
-      this(dspMaster, imageDsp, null, name, isRemovable, isMask);
+      this(dspMaster, imageDsp, null, new DatasetInfo(name), isRemovable, isMask);
    }
 
-   Depiction(DisplayMaster dspMaster, DisplayableData imageDsp, DepictionControl clrCntrl, String name, boolean isRemovable, boolean isMask) {
+   Depiction(DisplayMaster dspMaster, DisplayableData imageDsp, DepictionControl clrCntrl, DatasetInfo info, boolean isRemovable, boolean isMask) {
      this.dspMaster = dspMaster;
      this.clrCntrl = clrCntrl;
      this.imageDsp = imageDsp;
-     this.name = name;
+     this.dsInfo = info;
+     if (info != null) {
+        this.name = info.name;
+     }
      this.isRemovable = isRemovable;
      this.isMask = isMask;
      if (clrCntrl != null) { // Not all Depictions have controls.
@@ -67,14 +72,14 @@ public class Depiction {
      }
    }
 
-   Depiction(DisplayMaster dspMaster, DisplayableData imageDsp, DepictionControl clrCntrl, String name, boolean isRemovable) {
-     this(dspMaster, imageDsp, clrCntrl, name, isRemovable, false);
+   Depiction(DisplayMaster dspMaster, DisplayableData imageDsp, DepictionControl clrCntrl, DatasetInfo info, boolean isRemovable) {
+     this(dspMaster, imageDsp, clrCntrl, info, isRemovable, false);
    }
 
-   Depiction(DisplayMaster dspMaster, DisplayableData imageDsp, DepictionControl clrCntrl, String name) {
-     this(dspMaster, imageDsp, clrCntrl, name, true, false);
+   Depiction(DisplayMaster dspMaster, DisplayableData imageDsp, DepictionControl clrCntrl, DatasetInfo info) {
+     this(dspMaster, imageDsp, clrCntrl, info, true, false);
    }
-
+   
    public JComponent doMakeComponent() {
        JPanel panel = new JPanel(new FlowLayout());
 
@@ -136,29 +141,20 @@ public class Depiction {
 
    public void setName(String newName) {
      this.name = newName;
+     if (this.dsInfo != null) {
+        this.dsInfo.name = name;
+     }
      this.show.setText(name);
-   }
-
-   public void setLongName(String longName) {
-      this.longName = longName;
-   }
-
-   public String getLongName() {
-      return longName;
    }
 
    public String getName() {
      return name;
    }
    
-   public void setDateTimeStr(String dateTime) {
-       this.dateTimeStr = dateTime;
+   public DatasetInfo getDatasetInfo() {
+      return dsInfo;
    }
    
-   public String getDateTimeStr() {
-       return dateTimeStr;
-   }
-
    public void setPopupName(String popupName) {
       tooltip = popupName;
    }

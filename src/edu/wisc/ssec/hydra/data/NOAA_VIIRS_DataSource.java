@@ -1,6 +1,5 @@
 package edu.wisc.ssec.hydra.data;
 
-import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +10,9 @@ import edu.wisc.ssec.adapter.GranuleAggregation;
 import edu.wisc.ssec.adapter.NetCDFFile;
 import edu.wisc.ssec.adapter.RangeProcessor;
 import edu.wisc.ssec.adapter.AggregationRangeProcessor;
+import edu.wisc.ssec.adapter.MultiDimensionReader;
+import edu.wisc.ssec.adapter.MultiSpectralData;
+import edu.wisc.ssec.adapter.SpectrumAdapter;
 import visad.VisADException;
 import visad.Data;
 import java.rmi.RemoteException;
@@ -31,6 +33,10 @@ public class NOAA_VIIRS_DataSource extends DataSource {
    
    String[] bandNames = null;
    float[] centerWavelength = null;
+   
+   MultiSpectralData multiSpectData;
+   
+   HashMap<DataChoice, MultiSpectralData> msdMap = new HashMap<>();
 
 
    public NOAA_VIIRS_DataSource(File directory) throws Exception {
@@ -111,16 +117,20 @@ public class NOAA_VIIRS_DataSource extends DataSource {
       String name = files[0].getName();
       String[] strs = name.split("_");
       String prodStr = strs[0].substring(2,5);
+      String sensorName = null;
       
       String geoDatasetPath = null;
       if (prodStr.startsWith("M")) {
          geoDatasetPath = "All_Data/VIIRS-MOD-GEO-TC_All/";
+         sensorName = "VIIRS-M";
       }
       else if (prodStr.startsWith("I")) {
          geoDatasetPath = "All_Data/VIIRS-IMG-GEO-TC_All/";
+         sensorName = "VIIRS-I";
       }
       else if (prodStr.equals("DNB")) {
          geoDatasetPath = "All_Data/VIIRS-DNB-GEO_All/";
+         sensorName = "VIIRS_DNB";
       }
       else {
          throw new Exception("unknown product: "+prodStr);
@@ -173,6 +183,8 @@ public class NOAA_VIIRS_DataSource extends DataSource {
       AggregationRangeProcessor aggRngProcessor = new AggregationRangeProcessor(aggReader, metadata, rngProcessors);
       SwathAdapter adapter = new SwathAdapter(aggReader, metadata, aggGeoReader);
       
+      multiSpectData = makeMultiSpectralData(adapter, aggReader, getProductName(prodStr), "XTrack", "Track", prodStr, sensorName);
+      
       setDataChoice(adapter, 0, getProductName(prodStr));
    }
 
@@ -216,6 +228,30 @@ public class NOAA_VIIRS_DataSource extends DataSource {
       
       return metadata;
    }
+   
+   public MultiSpectralData makeMultiSpectralData(SwathAdapter swathAdapter, MultiDimensionReader reader, String array, String xtrack, String track, String prodStr, String sensorName) {
+         HashMap table = SpectrumAdapter.getEmptyMetadataTable();
+         table.put(SpectrumAdapter.array_name, array);
+         table.put(SpectrumAdapter.x_dim_name, xtrack);
+         table.put(SpectrumAdapter.y_dim_name, track);
+         table.put(SpectrumAdapter.channelValues, new float[] {getCenterWavelength(prodStr)});
+         table.put(SpectrumAdapter.bandNames, new String[] {prodStr});
+         table.put(SpectrumAdapter.channelType, "wavelength");
+         table.put(SwathAdapter.array_dimension_names, new String[] {track, xtrack});
+         SpectrumAdapter spectrumAdapter = new SpectrumAdapter(reader, table);
+         
+         String paramName = null;
+         if (array.contains("BrightnessTemperature")) {
+            paramName = "BrightnessTemp";
+            
+         }
+         else if (array.contains("Reflectance")) {
+            paramName = "Reflectance";
+         }
+
+         MultiSpectralData multiSpectData = new MultiSpectralData(swathAdapter, spectrumAdapter, paramName, paramName, sensorName, null);
+         return multiSpectData;
+   }
 
    
    public SwathAdapter getSwathAdapter(DataChoice dataChoice) {
@@ -226,6 +262,10 @@ public class NOAA_VIIRS_DataSource extends DataSource {
       }
       return null;
    }
+   
+   public MultiSpectralData getMultiSpectralData(DataChoice choice) {
+      return msdMap.get(choice);
+   }
 
    
     void setDataChoice(SwathAdapter adapter, int idx, String name) {
@@ -234,7 +274,8 @@ public class NOAA_VIIRS_DataSource extends DataSource {
        DataChoice dataChoice = new DataChoice(this, name, null);
        dataChoice.setDataSelection(dataSel);
        myDataChoices.add(dataChoice);
-       swathAdapters.add(adapter);       
+       swathAdapters.add(adapter);    
+       msdMap.put(dataChoice, multiSpectData);
     }  
 
 
@@ -569,10 +610,6 @@ public class NOAA_VIIRS_DataSource extends DataSource {
              validRange[0] = 0f;
              validRange[1] = 1.6f;
              break;
-          case "I06":
-             validRange[0] = 0f;
-             validRange[1] = 1.6f;
-             break;
           case "M07":
              validRange[0] = 0f;
              validRange[1] = 1.6f;
@@ -617,5 +654,73 @@ public class NOAA_VIIRS_DataSource extends DataSource {
        return validRange;
     }
 
-
+    public static float getCenterWavelength(String prodStr) {
+       float wavelength = Float.NaN;
+       switch(prodStr) {
+          case "I01":
+             wavelength = 0.640f;
+             break;
+          case "I02":
+             wavelength = 0.856f;             
+             break;
+          case "I03":
+             wavelength = 1.610f;             
+             break;
+          case "I04":
+             wavelength = 3.740f;             
+             break;
+          case "I05":
+             wavelength = 11.450f;             
+             break;
+          case "M01":
+             wavelength = 0.412f;             
+             break;
+          case "M02":
+             wavelength = 0.445f;             
+             break;
+          case "M03":
+             wavelength = 0.488f;             
+             break;
+          case "M04":
+             wavelength = 0.555f;             
+             break;
+          case "M05":
+             wavelength = 0.672f;             
+             break;
+          case "M06":
+             wavelength = 0.746f;             
+             break;
+          case "M07":
+             wavelength = 0.865f;             
+             break;
+          case "M08":
+             wavelength = 1.240f;             
+             break;
+          case "M09":
+             wavelength = 1.378f;             
+             break;
+          case "M10":
+             wavelength = 1.61f;             
+             break;
+          case "M11":
+             wavelength = 2.250f;             
+             break;
+          case "M12":
+             wavelength = 3.700f;             
+             break;
+          case "M13":
+             wavelength = 4.050f;             
+             break;
+          case "M14":
+             wavelength = 8.550f;             
+             break;
+          case "M15":
+             wavelength = 10.763f;             
+             break;  
+          case "M16":
+             wavelength = 12.013f;             
+             break;
+       }
+       return wavelength;
+    }
 }

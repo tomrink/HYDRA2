@@ -1,31 +1,3 @@
-/*
- * This file is part of McIDAS-V
- *
- * Copyright 2007-2013
- * Space Science and Engineering Center (SSEC)
- * University of Wisconsin - Madison
- * 1225 W. Dayton Street, Madison, WI 53706, USA
- * http://www.ssec.wisc.edu/mcidas
- * 
- * All Rights Reserved
- * 
- * McIDAS-V is built on Unidata's IDV and SSEC's VisAD libraries, and
- * some McIDAS-V source code is based on IDV and VisAD source code.  
- * 
- * McIDAS-V is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- * 
- * McIDAS-V is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
- */
-
 package edu.wisc.ssec.adapter;
 
 import java.awt.geom.Rectangle2D;
@@ -52,7 +24,7 @@ import visad.VisADException;
 
 public class MultiSpectralData extends MultiDimensionAdapter {
 
-  SwathAdapter swathAdapter = null;
+  GeoSfcAdapter swathAdapter = null;
   SpectrumAdapter spectrumAdapter = null;
   CoordinateSystem cs = null;
 
@@ -72,9 +44,12 @@ public class MultiSpectralData extends MultiDimensionAdapter {
   ArrayList<String> bandNameList = null;
   HashMap<String, Float> bandNameMap = null;
   
+  private boolean needsReflCorr = false;
   private Date date;
+  private FloatArrayCache reflCorrCache;
+  private float[] reflCorr;
 
-  public MultiSpectralData(SwathAdapter swathAdapter, SpectrumAdapter spectrumAdapter,
+  public MultiSpectralData(GeoSfcAdapter swathAdapter, SpectrumAdapter spectrumAdapter,
                            String inputParamName, String paramName, String sensorName, String platformName, Date date) {
     this.swathAdapter = swathAdapter;
     this.spectrumAdapter = spectrumAdapter;
@@ -100,21 +75,24 @@ public class MultiSpectralData extends MultiDimensionAdapter {
         System.out.println("could not initialize initial wavenumber");
       }
     }
+    
+    needsReflCorr = (sensorName != null && sensorName.equals("MODIS"));
+    reflCorrCache = new FloatArrayCache();
 
     setSpectrumAdapterProcessor();
   }
   
-  public MultiSpectralData(SwathAdapter swathAdapter, SpectrumAdapter spectrumAdapter,
+  public MultiSpectralData(GeoSfcAdapter swathAdapter, SpectrumAdapter spectrumAdapter,
           String inputParamName, String paramName, String sensorName, String platformName) {
       this(swathAdapter, spectrumAdapter, inputParamName, paramName, sensorName, platformName, null);
   }
 
-  public MultiSpectralData(SwathAdapter swathAdapter, SpectrumAdapter spectrumAdapter,
+  public MultiSpectralData(GeoSfcAdapter swathAdapter, SpectrumAdapter spectrumAdapter,
                            String sensorName, String platformName) {
     this(swathAdapter, spectrumAdapter, "Radiance", "BrightnessTemp", sensorName, platformName);
   }
 
-  public MultiSpectralData(SwathAdapter swathAdapter, SpectrumAdapter spectrumAdapter) {
+  public MultiSpectralData(GeoSfcAdapter swathAdapter, SpectrumAdapter spectrumAdapter) {
     this(swathAdapter, spectrumAdapter, null, null);
   }
 
@@ -137,8 +115,18 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     spectrumSelect.put(SpectrumAdapter.x_dim_name, new double[] {(double)coords[0], (double)coords[0], 1.0});
     spectrumSelect.put(SpectrumAdapter.y_dim_name, new double[] {(double)coords[1], (double)coords[1], 1.0});
 
+    float[][] ll = new float[][] {{Float.NaN}, {Float.NaN}};
+    if (cs != null) {
+       ll = cs.toReference(new float[][] {{coords[0]}, {coords[1]}});
+    }
+    else {
+       double[] loc = swathAdapter.getNavigation().getEarthLocOfDataCoord(coords);
+       ll[0][0] = (float) loc[0];
+       ll[1][0] = (float) loc[1];
+    }
+    
     FlatField spectrum = spectrumAdapter.getData(spectrumSelect);
-    return convertSpectrum(spectrum, paramName);
+    return convertSpectrum(spectrum, paramName, ll[0][0], ll[1][0]);
   }
 
   public FlatField getSpectrum(RealTuple location) 
@@ -146,11 +134,12 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     if (spectrumAdapter == null) return null;
     int[] coords = getSwathCoordinates(location, cs);
     if (coords == null) return null;
+    float[][] ll = cs.toReference(new float[][] {{coords[0]}, {coords[1]}});
     spectrumSelect.put(SpectrumAdapter.x_dim_name, new double[] {(double)coords[0], (double)coords[0], 1.0});
     spectrumSelect.put(SpectrumAdapter.y_dim_name, new double[] {(double)coords[1], (double)coords[1], 1.0});
 
     FlatField spectrum = spectrumAdapter.getData(spectrumSelect);
-    return convertSpectrum(spectrum, paramName);
+    return convertSpectrum(spectrum, paramName, ll[0][0], ll[1][0]);
   }
 
   public FlatField getImage(HashMap subset) 
@@ -158,10 +147,15 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     FlatField image = swathAdapter.getData(subset);
     cs = ((RealTupleType) ((FunctionType)image.getType()).getDomain()).getCoordinateSystem();
 
-    int channelIndex = (int) ((double[])subset.get(SpectrumAdapter.channelIndex_name))[0];
-    float channel = spectrumAdapter.getWavenumberFromChannelIndex(channelIndex);
-
-    return convertImage(image, channel, paramName);
+    double[] coords = (double[]) subset.get(SpectrumAdapter.channelIndex_name);
+    if (coords != null) {
+       int channelIndex = (int) coords[0];
+       float channel = spectrumAdapter.getWavenumberFromChannelIndex(channelIndex);
+       return convertImage(image, channel, paramName);       
+    }
+    else {
+       return image;
+    }
   }
 
   public FlatField getImage(float channel, HashMap subset) 
@@ -200,29 +194,54 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     }
     else if (param.equals("Reflectance")) {
       FunctionType new_type = new FunctionType(f_type.getDomain(), RealType.getRealType("Reflectance"));
+      Linear2DSet dSet = (Linear2DSet) image.getDomainSet();
       new_image = new FlatField(new_type, image.getDomainSet());
-      if (sensorName.equals("MODIS")) {
+      if (sensorName != null && sensorName.equals("MODIS")) {
           CoordinateSystem cs = f_type.getDomain().getCoordinateSystem();
           Linear2DSet dset = (Linear2DSet) image.getDomainSet();
           float[][] samples = dset.getSamples();
           float[][] lonlat = cs.toReference(samples);
           
           float[] refls = (image.getFloats(true))[0];
-          refls = MODIS_L1B_Utility.reflectanceCorrForSolzen(refls, lonlat[0], lonlat[1], date);
+          reflCorr = reflCorrCache.get(dSet);
+          if (reflCorr == null) {
+             reflCorr = MODIS_L1B_Utility.reflectanceCorrForSolzen(lonlat[0], lonlat[1], date);
+             reflCorrCache.put(dSet, reflCorr);
+          }
+          for (int k=0; k<refls.length; k++) {
+             refls[k] *= reflCorr[k];
+          }
           new_image.setSamples(new float[][] {refls}, false);   
       }
       else {
         new_image.setSamples(image.getFloats(false), false);
       }
+      
+      if (inputParamName.equals("Reflectance100")) {
+         new_image = (FlatField) new_image.divide(new Real(100));
+      }
     }
     else {
       new_image = image;
+    }
+    if (sensorName != null && (sensorName.equals("ATMS") && platformName.equals("SuomiNPP"))) {
+        float[][] range = image.getFloats(false);
+        Linear2DSet dset = (Linear2DSet) image.getDomainSet();
+        Linear1DSet fovSet = dset.getLinear1DComponent(0);
+        int fovStart = (int) fovSet.getFirst();
+        int fovStop = (int) fovSet.getLast();
+        float[] new_range = ATMS_SDR_Utility.applyLimbCorrection(range[0], channel, fovStart, fovStop);
+        image.setSamples(new float[][] {new_range}, false);
     }
     return new_image;
   }
 
 
   FlatField convertSpectrum(FlatField spectrum, String param) throws Exception {
+     return convertSpectrum(spectrum, param, Float.NaN, Float.NaN);
+  }
+  
+  FlatField convertSpectrum(FlatField spectrum, String param, float lon, float lat) throws Exception {
     FlatField new_spectrum;
     FunctionType f_type = (FunctionType) spectrum.getType();
 
@@ -240,7 +259,17 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     else if (param.equals("Reflectance")) {
       FunctionType new_type = new FunctionType(f_type.getDomain(), RealType.getRealType("Reflectance"));
       new_spectrum = new FlatField(new_type, spectrum.getDomainSet());
-      new_spectrum.setSamples(spectrum.getFloats(false), false);
+      if (sensorName != null && sensorName.equals("MODIS")) {
+         float[] refls = (spectrum.getFloats(true))[0];
+         refls = MODIS_L1B_Utility.reflectanceCorrForSolzen(refls, lon, lat, date);
+         new_spectrum.setSamples(new float[][] {refls}, false);
+      }
+      else {
+         new_spectrum.setSamples(spectrum.getFloats(false), false);
+      }
+      if (inputParamName.equals("Reflectance100")) {
+         new_spectrum = (FlatField) new_spectrum.divide(new Real(100));
+      }
     }
     else {
       new_spectrum = spectrum;
@@ -271,7 +300,52 @@ public class MultiSpectralData extends MultiDimensionAdapter {
   public void setCoordinateSystem(CoordinateSystem cs) {
     this.cs = cs;
   }
+  
+  public void setSwathDomainSet(Linear2DSet dset) {
+     swathAdapter.setDomainSet(dset);
+  }
+ 
+  public SampledSet getSpectralDomain() throws Exception {
+     return spectrumAdapter.getDomainSet();
+  }
 
+  public String getSensorName() {
+     return sensorName;
+  }
+  
+  public boolean hasBandName(String name) {
+     return bandNameList.contains(name);
+  }
+  
+  public int[] transformSwathCoords(int[] coords, String inName) {
+     int[] outCoords = new int[] {coords[0], coords[1]};
+     if (inName == null) {
+        return coords;
+     }
+     if (inName.equals("VIIRS-M")) {
+        if (sensorName.equals("VIIRS-I")) {
+           outCoords[0] = 2*coords[0];
+           outCoords[1] = 2*coords[1];
+        }
+     }
+     else if (inName.equals("VIIRS-I")) {
+        if (sensorName.equals("VIIRS-M")) {
+           outCoords[0] = coords[0]/2;
+           outCoords[1] = coords[1]/2;
+        }        
+     }
+     return outCoords;
+  }
+  
+  
+  void setReflectanceCorr(Linear2DSet domSet, float[] reflCorr) {
+     reflCorrCache.put(domSet, reflCorr);
+  }
+  
+  float[] getReflectanceCorr(Linear2DSet domSet) {
+     return reflCorrCache.get(domSet);
+  }
+  
   public boolean hasBandNames() {
     return hasBandNames;
   }
@@ -297,6 +371,10 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     }
     return bandName;
   }
+  
+  public float getWavenumberFromBandName(String bandName) {
+     return bandNameMap.get(bandName);
+  }
 
   public void setInitialWavenumber(float val) {
     init_wavenumber = val;
@@ -317,12 +395,15 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     if (lon > 180) lon -= 360f;
     float[][] xy = cs.fromReference(new float[][] {{lon}, {lat}});
     if ((Float.isNaN(xy[0][0])) || Float.isNaN(xy[1][0])) return null;
-    Set domain = swathAdapter.getSwathDomain();
+    Set domain = swathAdapter.getDatasetDomain();
     int[] idx = domain.valueToIndex(xy);
-    xy = domain.indexToValue(idx);
+    int[] lens = ((Linear2DSet)domain).getLengths();
+    int lenX = lens[0];
+    int lenY = lens[1];
     int[] coords = new int[2];
-    coords[0] = (int) xy[0][0];
-    coords[1] = (int) xy[1][0];
+    coords[0] = idx[0] % lenX;
+    coords[1] = idx[0]/lenX;
+    
     if ((coords[0] < 0)||(coords[1] < 0)) return null;
     return coords;
   }
@@ -733,7 +814,42 @@ public class MultiSpectralData extends MultiDimensionAdapter {
     return spectrumAdapter;
   }
   
-  public SwathAdapter getSwathAdapter() {
+  //public SwathAdapter getSwathAdapter() {
+  public GeoSfcAdapter getSwathAdapter() {
     return swathAdapter;
   }
+  
+  public int getNumChannels() {
+     return spectrumAdapter.getNumChannels();
+  }
+}
+
+class FloatArrayCache {
+   Linear2DSet domainSet0;
+   float[] fltArray0;
+   Linear2DSet domainSet1;
+   float[] fltArray1;
+   
+   void put(Linear2DSet domSet, float[] fltArray) {
+      if (domainSet0 == null || SwathAdapter.dimsEquals(domSet, domainSet0)) {
+         domainSet0 = domSet;
+         fltArray0 = fltArray;
+      }
+      else {
+         domainSet1 = domSet;
+         fltArray1 = fltArray;
+      }
+   }
+   
+   float[] get(Linear2DSet domSet) {
+      if (domainSet0 != null && SwathAdapter.dimsEquals(domainSet0, domSet)) {
+         return fltArray0;
+      }
+      else if (domainSet1 != null && SwathAdapter.dimsEquals(domainSet1, domSet)) {
+         return fltArray1;
+      }
+      else {
+         return null;
+      }
+   }
 }

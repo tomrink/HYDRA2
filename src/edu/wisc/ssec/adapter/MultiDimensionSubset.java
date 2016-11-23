@@ -2,9 +2,7 @@ package edu.wisc.ssec.adapter;
 
 import edu.wisc.ssec.hydra.data.DataSelection;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.Set;
 
 
 public class MultiDimensionSubset extends DataSelection {
@@ -57,12 +55,27 @@ public class MultiDimensionSubset extends DataSelection {
   public void setCoords(String key, double[] rpl) {
      coordsMap.put(key, rpl);
   }
+  
+  public void setCoords(HashMap subset) {
+     Iterator iter = subset.keySet().iterator();
+     while (iter.hasNext()) {
+        String key = (String) iter.next();
+        double[] coords = (double[]) subset.get(key);
+        double[] new_coords = new double[coords.length];
+        System.arraycopy(coords,0,new_coords,0,new_coords.length);
+        coordsMap.put(key, new_coords);       
+     }
+  }
+  
+  public boolean isEmtpy() {
+     return coordsMap.isEmpty();
+  }
 
   public MultiDimensionSubset clone() {
     MultiDimensionSubset subset = new MultiDimensionSubset(getSubset());
     return subset;
   }
-
+  
   public String toString() {
     StringBuffer sb = new StringBuffer();
     Iterator<String> iter = coordsMap.keySet().iterator();

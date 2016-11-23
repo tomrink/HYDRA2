@@ -17,6 +17,7 @@ import java.awt.event.ActionEvent;
 
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.ReprojectSwath;
+import visad.CoordinateSystem;
 
 import visad.Data;
 import visad.FieldImpl;
@@ -24,6 +25,7 @@ import visad.FlatField;
 import visad.FunctionType;
 import visad.RealType;
 import visad.Linear2DSet;
+import visad.Set;
 import visad.georef.MapProjection;
 
 public class FourChannelCombine extends Compute {
@@ -58,6 +60,7 @@ public class FourChannelCombine extends Compute {
    boolean needReproject = true;
    
    String dateTimeStr = null;
+   String sourceDesc = null;
    
    public FourChannelCombine() {
    }
@@ -307,7 +310,14 @@ public class FourChannelCombine extends Compute {
        nameA = operandA.getName();
        nadirResolution = operandA.dataSource.getNadirResolution(operandA.dataChoice);
        needReproject = operandA.dataSource.getDoReproject(operandA.dataChoice);
-       dateTimeStr = (String) operandA.dataSource.getDateTimeStamp();
+       dateTimeStr = operandA.dataSource.getDateTimeStamp();
+       sourceDesc = operandA.dataSource.getDescription();
+       
+       CoordinateSystem coordSysA = fldA.getDomainCoordinateSystem();
+       CoordinateSystem coordSysB = null;
+       CoordinateSystem coordSysC = null;
+       CoordinateSystem coordSysD = null;
+       boolean allGEOS = coordSysA instanceof GEOSProjection;
        
        boolean needReproA;
        boolean needReproB;
@@ -330,6 +340,8 @@ public class FourChannelCombine extends Compute {
           float res = operandB.dataSource.getNadirResolution(operandB.dataChoice);
           needReproB = operandB.dataSource.getDoReproject(operandB.dataChoice);
           if (res > nadirResolution) nadirResolution = res;
+          coordSysB = fldB.getDomainCoordinateSystem();
+          allGEOS = allGEOS && (coordSysB instanceof GEOSProjection);
        }
        if (!operandC.isEmpty()) {
           fldC = (FlatField) operandC.getData();
@@ -342,6 +354,8 @@ public class FourChannelCombine extends Compute {
           float res = operandC.dataSource.getNadirResolution(operandC.dataChoice);
           needReproC = operandC.dataSource.getDoReproject(operandC.dataChoice);
           if (res > nadirResolution) nadirResolution = res;
+          coordSysC = fldC.getDomainCoordinateSystem();
+          allGEOS = allGEOS && (coordSysC instanceof GEOSProjection);         
        }
        if (!operandD.isEmpty()) {
           fldD = (FlatField) operandD.getData();
@@ -354,11 +368,29 @@ public class FourChannelCombine extends Compute {
           float res = operandD.dataSource.getNadirResolution(operandD.dataChoice);
           needReproD = operandD.dataSource.getDoReproject(operandD.dataChoice);
           if (res > nadirResolution) nadirResolution = res;
+          coordSysD = fldD.getDomainCoordinateSystem();
+          allGEOS = allGEOS && (coordSysD instanceof GEOSProjection);          
        }
-
+       
        String operName;
-
-       if (needResample) {
+       
+       FunctionType ftypeA = (FunctionType) fldA.getType();
+       Set dSetA = fldA.getDomainSet();
+       
+       if (needResample && allGEOS) {
+          fldA = Hydra.makeGEOSRadiansDomainField(fldA, (GEOSProjection) coordSysA);
+          
+          if (fldB != null) {
+             fldB = Hydra.makeGEOSRadiansDomainField(fldB, (GEOSProjection)coordSysB);
+          }
+          if (fldC != null) {
+             fldC = Hydra.makeGEOSRadiansDomainField(fldC, (GEOSProjection)coordSysC);
+          }
+          if (fldD != null) {
+             fldD = Hydra.makeGEOSRadiansDomainField(fldD, (GEOSProjection)coordSysD);
+          }
+       }
+       else if (needResample) {
           float[][] corners = MultiSpectralData.getLonLatBoundingCorners(fldA.getDomainSet());
           MapProjection mp = Hydra.getSwathProjection(corners);
           commonGrid = Hydra.makeGrid(mp, corners, nadirResolution);
@@ -396,37 +428,45 @@ public class FourChannelCombine extends Compute {
 
 
        FieldImpl fldAB = null;
-       if (operationAB == "-") {
-          fldAB = (FieldImpl) fldA.subtract(fldB);
-       }
-       else if (operationAB == "+") {
-          fldAB = (FieldImpl) fldA.add(fldB);
-       }
-       else if (operationAB == "/") {
-          fldAB = (FieldImpl) fldA.divide(fldB);
-          fldAB = Hydra.infiniteToNaN(fldAB);
-       }
-       else if (operationAB == "*") {
-          fldAB = (FieldImpl) fldA.multiply(fldB);
-       }
-       else if (operationAB == " ") {
-          fldAB = fldA;
-       }
+       if (null != operationAB) switch (operationAB) {
+         case "-":
+            fldAB = (FieldImpl) fldA.subtract(fldB);
+            break;
+         case "+":
+            fldAB = (FieldImpl) fldA.add(fldB);
+            break;
+         case "/":
+            fldAB = (FieldImpl) fldA.divide(fldB);
+            fldAB = Hydra.infiniteToNaN(fldAB);
+            break;
+         case "*":
+            fldAB = (FieldImpl) fldA.multiply(fldB);
+            break;
+         case " ":
+            fldAB = fldA;
+            break;
+         default:
+            break;
+      }
 
        FieldImpl fldCD = null;
        if (!operandD.isEmpty) {
-          if (operationCD == "-") {
-             fldCD = (FieldImpl) fldC.subtract(fldD);
-          }
-          else if (operationCD == "+") {
-             fldCD = (FieldImpl) fldC.add(fldD);
-          }
-          else if (operationCD == "*") {
-             fldCD = (FieldImpl) fldC.multiply(fldD);
-          }
-          else if (operationCD == "/") {
-             fldCD = (FieldImpl) fldC.divide(fldD);
-             fldCD = Hydra.infiniteToNaN(fldCD);
+          if (null != operationCD) switch (operationCD) {
+             case "-":
+                fldCD = (FieldImpl) fldC.subtract(fldD);
+                break;
+             case "+":
+                fldCD = (FieldImpl) fldC.add(fldD);
+                break;
+             case "*":
+                fldCD = (FieldImpl) fldC.multiply(fldD);
+                break;
+             case "/":
+                fldCD = (FieldImpl) fldC.divide(fldD);
+                fldCD = Hydra.infiniteToNaN(fldCD);
+                break;
+             default:
+                break;
           }
        }
        else if (!operandC.isEmpty) {
@@ -436,19 +476,29 @@ public class FourChannelCombine extends Compute {
        FlatField fld = (FlatField) fldAB;
 
        if (fldAB != null && fldCD != null) {
-          if (operationLR == "-") {
-             fld = (FlatField) fldAB.subtract(fldCD);
+          if (null != operationLR) switch (operationLR) {
+             case "-":
+                fld = (FlatField) fldAB.subtract(fldCD);
+                break;
+             case "+":
+                fld = (FlatField) fldAB.add(fldCD);
+                break;
+             case "*":
+                fld = (FlatField) fldAB.multiply(fldCD);
+                break;
+             case "/":
+                fld = (FlatField) fldAB.divide(fldCD);
+                fld = (FlatField) Hydra.infiniteToNaN(fld);
+                break;
+             default:
+                break;
           }
-          else if (operationLR == "+") {
-             fld = (FlatField) fldAB.add(fldCD);
-          }
-          else if (operationLR == "*") {
-             fld = (FlatField) fldAB.multiply(fldCD);
-          }
-          else if (operationLR == "/") {
-             fld = (FlatField) fldAB.divide(fldCD);
-             fld = (FlatField) Hydra.infiniteToNaN(fld);
-          }
+       }
+       
+       if (allGEOS && needResample) {
+          FlatField tmp = new FlatField(ftypeA, dSetA);
+          tmp.setSamples(fld.getFloats(false), false);
+          fld = tmp;
        }
 
        operName = getOperationName();
@@ -548,24 +598,26 @@ public class FourChannelCombine extends Compute {
       }
 
       String name = ((RealType)((FunctionType)fld.getType()).getRange()).getName();
+      
+      DatasetInfo dsInfo = new DatasetInfo(name, new DataSourceInfo(sourceDesc, dateTimeStr));
 
       if (mode == 0 || ImageDisplay.getTarget() == null) {
-         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr, null);
+         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name);
          if (swathImage != null) {
             Hydra.displayableToImage.put(imageDsp, swathImage);
          }
-         ImageDisplay iDisplay = new ImageDisplay(imageDsp, mp, windowNumber);
+         ImageDisplay iDisplay = new ImageDisplay(imageDsp, mp, windowNumber, dsInfo, false);
       }
       else if (mode == 1) {
-         ImageDisplay.getTarget().updateImageData(fld, Hydra.grayTable, mp, name, dateTimeStr);
+         ImageDisplay.getTarget().updateImageData(fld, Hydra.grayTable, mp, dsInfo);
       }
       else if (mode == 2) {
          fld = Hydra.makeFlatFieldWithUniqueRange(fld);
-         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name, dateTimeStr, null);
+         HydraRGBDisplayable imageDsp = Hydra.makeImageDisplayable(fld, null, Hydra.grayTable, name);
          if (swathImage != null) {
             Hydra.displayableToImage.put(imageDsp, swathImage);
          }
-         ImageDisplay.getTarget().addOverlayImage(imageDsp);
+         ImageDisplay.getTarget().addOverlayImage(imageDsp, dsInfo);
       }
    }
 

@@ -39,10 +39,6 @@ public class ImageRGBDisplayable extends DisplayableData {
     
     public EarthLocationTuple maxLoc;
     
-    private String dateTimeStr = " ";
-    
-    private String description = " ";
-
     /**
      * Constructs from a name for the Displayable and the type of the
      * RGB parameter.
@@ -136,16 +132,6 @@ public class ImageRGBDisplayable extends DisplayableData {
         }
     }
     
-    public void setDateTime(String dateTimeStr) {
-        this.dateTimeStr = dateTimeStr;
-    }
-    
-    public String getDateTimeStr() {
-        return dateTimeStr;
-    }
-      
-
-
     /**
      * Set the data into the Displayable; set RGB Type
      *

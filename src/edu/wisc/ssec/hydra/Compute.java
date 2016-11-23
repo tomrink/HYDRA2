@@ -1,7 +1,9 @@
 package edu.wisc.ssec.hydra;
 
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
+import edu.wisc.ssec.hydra.data.DataChoice;
 import edu.wisc.ssec.hydra.data.DataSelection;
+import edu.wisc.ssec.hydra.data.DataSource;
 
 import javax.swing.JComponent;
 import javax.swing.JFrame;
@@ -48,11 +50,6 @@ public class Compute implements SelectionListener {
             operators[k] = new String();
          }
       }
-
-      gui = buildGUI();
-      gui.add(makeActionComponent());
-
-      SelectionAdapter.addSelectionListenerToAll(this);
    }
 
    public Compute(int numOperands, String title) {
@@ -112,6 +109,10 @@ public class Compute implements SelectionListener {
    }
 
    public void show(int x, int y, String title) {
+      gui = buildGUI();
+      gui.add(makeActionComponent());
+      SelectionAdapter.addSelectionListenerToAll(this);   
+      
       frame = Hydra.createAndShowFrame(title, gui);
       frame.setLocation(x,y);
       final Compute compute = this;
@@ -154,6 +155,21 @@ public class Compute implements SelectionListener {
       operand.isEmpty = false;
    
       updateUI(e);
+   }
+   
+   public void setOperand(int operIdx, DataSource dataSource, Selection selection, DataChoice dataChoice) {
+      Operand operand = operands[operIdx];
+      operand.dataSource = dataSource;
+      operand.selection = selection;
+      operand.dataChoice = dataChoice;
+      
+//      DataSelection dataSelection = new MultiDimensionSubset();
+//      operand.selection.applyToDataSelection(dataSelection);
+//      operand.dataSelection = dataSelection;
+      operand.compute = null;
+      
+      // what should this be? operand.name = ;
+      operand.isEmpty = false;
    }
 
    public void updateUI(SelectionEvent e) {

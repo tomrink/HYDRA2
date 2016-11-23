@@ -138,10 +138,6 @@ public class PreviewSelection {
             min = dMin;
             max = dMax;
          }
-         else if (rngName.contains("BrightnessTemp") || rngName.contains("brightness_temp")) {
-            max = dMax*1.06;
-            min = dMax * 0.74;
-         }
          else if (name.equals("DNB")) {
             clrTbl = BaseColorControl.initTableGreyWedge(new float[4][256]);
             // these apply for incoming log10(dnb_radiance) values --------
@@ -283,35 +279,62 @@ public class PreviewSelection {
       }
 
       public void applyToDataSelection(DataSelection dataSelection) {
+         updateHydraContext();
+         
          MultiDimensionSubset select = hydraContext.getMultiDimensionSubset();
          
-         String key = "XTrack";
-         double[] coords = select.getCoords(key);
-         if (coords != null) {
-            ((MultiDimensionSubset)dataSelection).setCoords(key, coords);
+         ((MultiDimensionSubset)dataSelection).setCoords(((MultiDimensionSubset)dataChoice.getDataSelection()).getSubset());
+         //if (((MultiDimensionSubset)dataSelection).isEmtpy()) {
+         if (false) { // Don't replace incoming dataSelection with contents hydraContex, just the spatial info.
+            ((MultiDimensionSubset)dataSelection).setCoords(select.getSubset());
          }
          else {
-            key = "GridX";
-            coords = select.getCoords(key);
+            String key = "XTrack";
+            double[] coords = select.getCoords(key);
             if (coords != null) {
-               ((MultiDimensionSubset)dataSelection).setCoords(key, coords);              
+               ((MultiDimensionSubset)dataSelection).setCoords(key, coords);
             }
-         }
-         
-         key = "Track";
-         coords = select.getCoords(key);
-         if (coords != null) {
-            ((MultiDimensionSubset)dataSelection).setCoords(key, coords);
-         }
-         else {
-            key = "GridY";
+            else {
+               key = "GridX";
+               coords = select.getCoords(key);
+               if (coords != null) {
+                  ((MultiDimensionSubset)dataSelection).setCoords(key, coords);              
+               }
+            }
+
+            key = "Track";
             coords = select.getCoords(key);
             if (coords != null) {
-               ((MultiDimensionSubset)dataSelection).setCoords(key, coords);              
-            }            
+               ((MultiDimensionSubset)dataSelection).setCoords(key, coords);
+            }
+            else {
+               key = "GridY";
+               coords = select.getCoords(key);
+               if (coords != null) {
+                  ((MultiDimensionSubset)dataSelection).setCoords(key, coords);              
+               }            
+            }
          }
 
          dataChoice.setDataSelection(dataSelection);
+      }
+      
+      void updateHydraContext() {
+           try {
+              HydraContext lastContext = HydraContext.getLast();
+              if (lastContext != hydraContext) {
+                 if (Hydra.getRegionMatching() || 
+                      (lastContext.getDataSource() == hydraContext.getDataSource())) {
+                    syncRegionFrom(lastContext);
+                 }
+              }
+           }
+           catch (VisADException e) {
+             System.out.println(e);
+           }
+           catch (RemoteException e) {
+             System.out.println(e);
+           }         
       }
 
       public void updateBoxSelector() {
@@ -320,7 +343,7 @@ public class PreviewSelection {
            if (lastContext != hydraContext) {
               if (Hydra.getRegionMatching() || 
                    (lastContext.getDataSource() == hydraContext.getDataSource())) {
-                 syncRegionFrom(lastContext);
+                 previewDisplay.setBox(syncRegionFrom(lastContext));
               }
            }
            else {
@@ -338,7 +361,7 @@ public class PreviewSelection {
         }
       }
 
-      public boolean syncRegionFrom(HydraContext lastContext) throws VisADException, RemoteException {
+      public Gridded2DSet syncRegionFrom(HydraContext lastContext) throws VisADException, RemoteException {
          Gridded2DSet set = (Gridded2DSet) ((visad.Tuple)lastContext.getSelectBox()).getComponent(1);
          float[][] lonlat = set.getSamples();
          RealTupleType domain = ((FunctionType)image.getType()).getDomain();
@@ -352,14 +375,14 @@ public class PreviewSelection {
          }
          if (cnt/numPts > 0.8) overlap = false;
 
+         Gridded2DSet box;
          if (overlap) {
             float[] xlohi = Hydra.minmax(points[0]);
             float[] ylohi = Hydra.minmax(points[1]);
             double xskip = (xlohi[1] - xlohi[0])/60.0;
             double yskip = (ylohi[1] - ylohi[0])/60.0;
 
-            Gridded2DSet box = makeBoxOutline(xlohi[0], xlohi[1], xskip, ylohi[0], ylohi[1], yskip);
-            previewDisplay.setBox(box);
+            box = makeBoxOutline(xlohi[0], xlohi[1], xskip, ylohi[0], ylohi[1], yskip);
 
             MultiDimensionSubset newSubset = select.clone();
             HashMap map = newSubset.getSubset();
@@ -394,12 +417,10 @@ public class PreviewSelection {
          }
          else {
             // set empty, but not null -> Exception
-            Gridded2DSet set2D =
-               new Gridded2DSet(RealTupleType.SpatialCartesian2DTuple,
+            box = new Gridded2DSet(RealTupleType.SpatialCartesian2DTuple,
                                   new float[][] {{0},{0}}, 1);
-            previewDisplay.setBox(set2D);
          }
-         return overlap;
+         return box;
       }
 
       Gridded2DSet makeBoxOutline(double xtrkStart, double xtrkStop, double xtrkSkip,

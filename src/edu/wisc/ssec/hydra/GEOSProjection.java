@@ -95,7 +95,23 @@ public class GEOSProjection extends MapProjection {
       }
       return grid;
    }
+   
+   public double getScaleX() {
+      return scaleX;
+   } 
+   
+   public double getScaleY() {
+      return scaleY;
+   }
+   
+   public double getOffsetX() {
+      return offsetX;
+   }
 
+   public double getOffsetY() {
+      return offsetY;
+   }
+   
    public boolean equals(Object obj) {
      if ( obj instanceof GEOSProjection ) {
         GEOSProjection that = (GEOSProjection) obj;

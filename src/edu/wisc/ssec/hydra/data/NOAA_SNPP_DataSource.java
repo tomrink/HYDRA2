@@ -1,6 +1,5 @@
 package edu.wisc.ssec.hydra.data;
 
-import edu.wisc.ssec.hydra.data.DataSelection;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -20,11 +19,13 @@ import edu.wisc.ssec.adapter.CrIS_SDR_SwathAdapter;
 import edu.wisc.ssec.adapter.MultiSpectralAggr;
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.MultiDimensionAdapter;
+import edu.wisc.ssec.hydra.Hydra;
 import visad.VisADException;
 import visad.Data;
 import java.rmi.RemoteException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import ucar.unidata.util.ColorTable;
 
 
 public class NOAA_SNPP_DataSource extends DataSource {
@@ -259,7 +260,7 @@ public class NOAA_SNPP_DataSource extends DataSource {
       
       SpectrumAdapter spectAdapter = new SpectrumAdapter(reader, spectTable);
       MultiSpectralData msd = new MultiSpectralData(adapter, spectAdapter, 
-                   "BrightnessTemperature", "BrightnessTemperature", "SuomiNPP", "ATMS");
+                   "BrightnessTemperature", "BrightnessTemperature", "ATMS", "SuomiNPP");
       msd.setInitialWavenumber(2f);
             
       return msd;
@@ -488,6 +489,8 @@ public class NOAA_SNPP_DataSource extends DataSource {
        }
        return validRange;
     }
-
-
+    
+    public ColorTable getDefaultColorTable(DataChoice choice) {
+       return Hydra.invGrayTable;
+    }   
 }

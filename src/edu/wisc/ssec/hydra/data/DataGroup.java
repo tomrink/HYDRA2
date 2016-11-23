@@ -11,7 +11,7 @@ package edu.wisc.ssec.hydra.data;
  */
 public class DataGroup {
    
-   String name;
+   private String name;
    
    public DataGroup(String name) {
       this.name = name;
@@ -19,11 +19,15 @@ public class DataGroup {
    
    public boolean equals(Object obj) {
       if (obj instanceof DataGroup) {
-         if ( ((DataGroup)obj).equals(this.name)) {
+         if ( ((DataGroup)obj).getName().equals(this.name)) {
             return true;
          }
       }
       return false;
+   }
+   
+   public String getName() {
+      return name;
    }
    
 }

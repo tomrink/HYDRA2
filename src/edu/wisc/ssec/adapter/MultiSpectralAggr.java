@@ -1,57 +1,18 @@
-/*
- * This file is part of McIDAS-V
- *
- * Copyright 2007-2013
- * Space Science and Engineering Center (SSEC)
- * University of Wisconsin - Madison
- * 1225 W. Dayton Street, Madison, WI 53706, USA
- * http://www.ssec.wisc.edu/mcidas
- * 
- * All Rights Reserved
- * 
- * McIDAS-V is built on Unidata's IDV and SSEC's VisAD libraries, and
- * some McIDAS-V source code is based on IDV and VisAD source code.  
- * 
- * McIDAS-V is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- * 
- * McIDAS-V is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
- */
-
 package edu.wisc.ssec.adapter;
 
 import visad.FlatField;
 import visad.SampledSet;
 import visad.RealTuple;
-import visad.SetType;
-import visad.RealType;
 import visad.RealTupleType;
 import visad.VisADException;
-import visad.CoordinateSystem;
 import visad.FunctionType;
-import visad.Real;
-import visad.Set;
-import visad.Linear1DSet;
-import visad.Linear2DSet;
 import visad.Gridded1DSet;
-import visad.Gridded2DSet;
 import visad.QuickSort;
 import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.ArrayList;
-import java.awt.geom.Rectangle2D;
-
-import visad.georef.MapProjection;
-import visad.CachingCoordinateSystem;
-import ucar.visad.ProjectionCoordinateSystem;
+import visad.CoordinateSystem;
+import visad.Linear2DSet;
 
 public class MultiSpectralAggr extends MultiSpectralData {
 
@@ -81,6 +42,7 @@ public class MultiSpectralAggr extends MultiSpectralData {
     super(adapters[0].swathAdapter, null);
     this.adapters = adapters;
     paramName = adapters[0].getParameter();
+    sensorName = adapters[0].getSensorName();
     if (name != null) {
       this.name = name;
     }
@@ -134,12 +96,13 @@ public class MultiSpectralAggr extends MultiSpectralData {
       System.arraycopy(values[0], 0, aggrValues, offset[k], values[0].length);
     }
 
+    float[] sortVals = new float[numBands];
     for (int t=0; t<numBands; t++) {
-      aggrValues[t] = aggrValues[sort_indexes[t]];
+      sortVals[t] = aggrValues[sort_indexes[t]];
     }
 
     spectrum = new FlatField((FunctionType)spectrum.getType(), aggrDomain);
-    spectrum.setSamples(new float[][] {aggrValues});
+    spectrum.setSamples(new float[][] {sortVals});
 
     return spectrum;
   }
@@ -155,50 +118,48 @@ public class MultiSpectralAggr extends MultiSpectralData {
       System.arraycopy(values[0], 0, aggrValues, offset[k], values[0].length);
     }
 
+    float[] sortVals = new float[numBands];
     for (int t=0; t<numBands; t++) {
-      aggrValues[t] = aggrValues[sort_indexes[t]];
+      sortVals[t] = aggrValues[sort_indexes[t]];
     }
-
+    
     spectrum = new FlatField((FunctionType)spectrum.getType(), aggrDomain);
-    spectrum.setSamples(new float[][] {aggrValues});
+    spectrum.setSamples(new float[][] {sortVals});
 
     return spectrum;
   }
 
   public FlatField getImage(HashMap subset) throws Exception {
     int channelIndex = (int) ((double[])subset.get(SpectrumAdapter.channelIndex_name))[0];
-    
-    int idx = sort_indexes[channelIndex];
-    
-    int swathAdapterIndex = numAdapters-1;
-    for (int k=0; k<numAdapters-1;k++) {
-      if (idx >= offset[k] && idx < offset[k+1]) swathAdapterIndex = k;
-    }
-    float channel = aggrSamples[channelIndex];
-    FlatField image = adapters[swathAdapterIndex].getImage(channel, subset);
-    cs = ((RealTupleType) ((FunctionType)image.getType()).getDomain()).getCoordinateSystem();
-    for (int k=0; k<numAdapters;k++) {
-      if (k != swathAdapterIndex) adapters[k].setCoordinateSystem(cs);
-    }
-    return image;
+    return getImage(channelIndex, subset);
   }
 
   public FlatField getImage(float channel, HashMap subset) throws Exception {
     int channelIndex = aggrDomain.valueToIndex(new float[][] {{channel}})[0];
-
-    int idx = sort_indexes[channelIndex];
-
+    return getImage(channelIndex, subset);
+  }
+  
+  public FlatField getImage(int channelIndex, HashMap subset) throws Exception {
+    int idx = sort_indexes[channelIndex];     
     int swathAdapterIndex = numAdapters-1;
     for (int k=0; k<numAdapters-1;k++) {
       if (idx >= offset[k] && idx < offset[k+1]) swathAdapterIndex = k;
     }
-    channel = aggrSamples[channelIndex];
+    
+    float channel = aggrSamples[channelIndex];
     FlatField image = adapters[swathAdapterIndex].getImage(channel, subset);
+    Linear2DSet domSet = (Linear2DSet) image.getDomainSet();
     cs = ((RealTupleType) ((FunctionType)image.getType()).getDomain()).getCoordinateSystem();
+    
+    float[] reflCorr = adapters[swathAdapterIndex].getReflectanceCorr(domSet);
     for (int k=0; k<numAdapters;k++) {
-      if (k != swathAdapterIndex) adapters[k].setCoordinateSystem(cs);
+      adapters[k].setCoordinateSystem(cs);
+      if (k != swathAdapterIndex) {
+         adapters[k].setReflectanceCorr(domSet, reflCorr);
+      }
     }
-    return image;
+    
+    return image;     
   }
 
   public int getChannelIndexFromWavenumber(float channel) throws VisADException, RemoteException {
@@ -208,6 +169,36 @@ public class MultiSpectralAggr extends MultiSpectralData {
 
   public float getWavenumberFromChannelIndex(int index) throws Exception {
     return (aggrDomain.indexToValue(new int[] {index}))[0][0];
+  }
+  
+  public void setCoordinateSystem(CoordinateSystem cs) {
+     this.cs = cs;
+     for (int k=0; k<numAdapters; k++) {
+        adapters[k].setCoordinateSystem(cs);
+     }
+  }
+  
+  public void setSwathDomainSet(Linear2DSet dset) {
+     for (int k=0; k<numAdapters; k++) {
+        adapters[k].setSwathDomainSet(dset);
+     }     
+  }
+  
+  public int getNumChannels() {
+     return numBands;
+  }
+  
+  public Gridded1DSet getSpectralDomain() {
+     return aggrDomain;
+  }
+  
+  public boolean hasBandName(String name) {
+     for (int k=0; k<numAdapters; k++) {
+        if (adapters[k].hasBandName(name)) {
+           return true;
+        }
+     }
+     return false;
   }
 
   public HashMap getDefaultSubset() {

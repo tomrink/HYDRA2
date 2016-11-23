@@ -11,6 +11,7 @@ import java.awt.Color;
 import edu.wisc.ssec.hydra.data.MultiSpectralDataSource;
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.ReprojectSwath;
+import visad.CoordinateSystem;
 
 import visad.Data;
 import visad.FlatField;
@@ -33,6 +34,7 @@ public class RGBComposite extends Compute {
    String dateTimeStr = null;
 
    public RGBComposite() {
+      super(3, "RGBComposite");
    }
 
    public RGBComposite(DataBrowser dataBrowser) {
@@ -112,6 +114,12 @@ public class RGBComposite extends Compute {
        boolean grnRepro = grnOp.dataSource.getDoReproject(grnOp.dataChoice);
        boolean bluRepro = bluOp.dataSource.getDoReproject(bluOp.dataChoice);
        
+       CoordinateSystem coordSysR = red.getDomainCoordinateSystem();
+       CoordinateSystem coordSysG = grn.getDomainCoordinateSystem();
+       CoordinateSystem coordSysB = blu.getDomainCoordinateSystem();
+       boolean allGEOS = coordSysR instanceof GEOSProjection && coordSysG instanceof GEOSProjection &&
+                         coordSysB instanceof GEOSProjection;
+       
        boolean noneRepro = !redRepro && !grnRepro && !bluRepro;
        boolean allRepro = redRepro && grnRepro && bluRepro;
 
@@ -143,6 +151,14 @@ public class RGBComposite extends Compute {
           rgb = ReprojectSwath.swathToGrid(grd, new FlatField[] {red, grn, blu}, mode);
        }
        else if (noneRepro) {
+          FunctionType ftypeR = (FunctionType) red.getType();
+          Set dSetR = red.getDomainSet();
+          if (allGEOS) {
+             red = Hydra.makeGEOSRadiansDomainField(red, (GEOSProjection) coordSysR);
+             grn = Hydra.makeGEOSRadiansDomainField(grn, (GEOSProjection) coordSysG);
+             blu = Hydra.makeGEOSRadiansDomainField(blu, (GEOSProjection) coordSysB);
+          }
+          
           Set setR = red.getDomainSet();
           Set setG = grn.getDomainSet();
           Set setB = blu.getDomainSet();
@@ -156,9 +172,15 @@ public class RGBComposite extends Compute {
              rgb.setSamples(new float[][] {red.getFloats(false)[0], grn.getFloats(false)[0], blu.getFloats(false)[0]}, false);
           }
           else {
-             FlatField ffG = (FlatField) grn.resample(setR, Data.WEIGHTED_AVERAGE, Data.NO_ERRORS);
-             FlatField ffB = (FlatField) blu.resample(setR, Data.WEIGHTED_AVERAGE, Data.NO_ERRORS);
+             FlatField ffG = (FlatField) grn.resample(setR, Data.NEAREST_NEIGHBOR, Data.NO_ERRORS);
+             FlatField ffB = (FlatField) blu.resample(setR, Data.NEAREST_NEIGHBOR, Data.NO_ERRORS);             
              rgb.setSamples(new float[][] {red.getFloats(false)[0], ffG.getFloats(false)[0], ffB.getFloats(false)[0]}, false);
+          }
+          
+          if (allGEOS) {
+             FlatField tmp = new FlatField(new FunctionType(((SetType)dSetR.getType()).getDomain(), newRangeType), dSetR);
+             tmp.setSamples(rgb.getFloats(false), false);
+             rgb = tmp;
           }
        }
 
@@ -170,17 +192,19 @@ public class RGBComposite extends Compute {
 
       MapProjection mp;
       mp = Hydra.getDataProjection(rgb);
+      
+      DatasetInfo dsInfo = new DatasetInfo(getOperationName(), new DataSourceInfo(dateTimeStr));
 
-      ImageRGBDisplayable imageDsp = Hydra.makeRGBImageDisplayable(rgb, getOperationName(), dateTimeStr);
+      ImageRGBDisplayable imageDsp = Hydra.makeRGBImageDisplayable(rgb, getOperationName());
 
       if (mode == 0 || ImageDisplay.getTarget() == null) {
-         ImageDisplay iDisplay = new ImageDisplay(imageDsp, mp, windowNumber);
+         ImageDisplay iDisplay = new ImageDisplay(imageDsp, mp, windowNumber, dsInfo, false);
       }
       else if (mode == 1) {
-         ImageDisplay.getTarget().updateImageRGBCompositeData(rgb, mp, dateTimeStr);
+         ImageDisplay.getTarget().updateImageRGBCompositeData(rgb, mp, getOperationName(), dsInfo);
       }
       else if (mode == 2) {
-         ImageDisplay.getTarget().addOverlayImage(imageDsp);
+         ImageDisplay.getTarget().addOverlayImage(imageDsp, dsInfo);
       }
    }
 
