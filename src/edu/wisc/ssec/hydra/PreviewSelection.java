@@ -56,7 +56,7 @@ public class PreviewSelection {
 
       MultiDimensionSubset select = null;
 
-      HydraContext hydraContext = null;
+      private HydraContext hydraContext = null;
 
       static boolean regionMatch = true;
 
@@ -72,8 +72,6 @@ public class PreviewSelection {
 
       Gridded2DSet boxOutline;
 
-      Gridded2DSet selectBox;
-                                    
 
       public PreviewSelection() {
       }
@@ -102,7 +100,9 @@ public class PreviewSelection {
         isLL = sampleProjection.isLatLonOrder();
 
         hydraContext = HydraContext.getHydraContext(dataSource, dataCategory);
-        if (HydraContext.getLast() == null) HydraContext.setLast(hydraContext);
+        if (HydraContext.getLastManual() == null) {
+           HydraContext.setLastManual(hydraContext);
+        }
 
         imageRangeType = 
           (((FunctionType)image.getType()).getFlatRange().getRealComponents())[0];
@@ -318,10 +318,14 @@ public class PreviewSelection {
 
          dataChoice.setDataSelection(dataSelection);
       }
+ 
+      public HydraContext getHydraContext() {
+         return hydraContext;
+      }
       
-      void updateHydraContext() {
+      private void updateHydraContext() {
            try {
-              HydraContext lastContext = HydraContext.getLast();
+              HydraContext lastContext = HydraContext.getLastManual();
               if (lastContext != hydraContext) {
                  if (Hydra.getRegionMatching() || 
                       (lastContext.getDataSource() == hydraContext.getDataSource())) {
@@ -339,18 +343,20 @@ public class PreviewSelection {
 
       public void updateBoxSelector() {
         try {
-           HydraContext lastContext = HydraContext.getLast();
-           if (lastContext != hydraContext) {
-              if (Hydra.getRegionMatching() || 
-                   (lastContext.getDataSource() == hydraContext.getDataSource())) {
-                 previewDisplay.setBox(syncRegionFrom(lastContext));
+           HydraContext lastContext = HydraContext.getLastManual();
+           if (hydraContext == lastContext) {
+              previewDisplay.setBox((Gridded2DSet) ((visad.Tuple)hydraContext.getSelectBox()).getComponent(0));               
+           }
+           else if (!Hydra.getRegionMatching()) {
+              if (lastContext.getDataSource() == hydraContext.getDataSource()) {
+                 previewDisplay.setBox(syncRegionFrom(lastContext));                    
+              }
+              else {
+                 previewDisplay.setBox((Gridded2DSet) ((visad.Tuple)hydraContext.getSelectBox()).getComponent(0));
               }
            }
            else {
-              Object obj = hydraContext.getSelectBox();
-              if (obj != null) { // should not be null
-                 previewDisplay.setBox((Gridded2DSet) ((visad.Tuple)hydraContext.getSelectBox()).getComponent(0));
-              }
+              previewDisplay.setBox(syncRegionFrom(lastContext));                 
            }
         }
         catch (VisADException e) {
@@ -414,6 +420,7 @@ public class PreviewSelection {
             coords1[2] = 1;
 
             hydraContext.setMultiDimensionSubset(new MultiDimensionSubset(map));
+            hydraContext.setSelectBox(new visad.Tuple(new Data[] {box, box}));            
          }
          else {
             // set empty, but not null -> Exception

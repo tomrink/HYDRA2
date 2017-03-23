@@ -1018,11 +1018,15 @@ public class ImageDisplay extends HydraDisplay implements ActionListener, Contro
          }
       }
    }
-
-
+   
+   
    public void setProbeVisible(boolean yesno) {
       probe.setVisible(yesno);
    }  
+   
+   public CoordinateSystem getDisplayCoordinateSystem() {
+      return mapProjDsp.getDisplayCoordinateSystem();
+   }
 
    public void actionPerformed(ActionEvent e) {
      String cmd = e.getActionCommand();

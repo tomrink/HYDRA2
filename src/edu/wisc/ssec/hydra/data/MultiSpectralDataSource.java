@@ -98,7 +98,6 @@ public class MultiSpectralDataSource extends DataSource {
 
     private String dateTime = null;
     
-    ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
     float nadirResolution = Float.NaN;
     float[] nadirResolutions;
     String sensorName = null;
@@ -595,7 +594,6 @@ public class MultiSpectralDataSource extends DataSource {
          multiSpectData.setDataRange(new float[] {0f, 0.8f});
          defaultSubset = multiSpectData.getDefaultSubset();
          multiSpectData_s.add(multiSpectData);
-         multiSpectData_s.add(null);
          imager = true;
          sounder = false;
        }
@@ -2217,10 +2215,6 @@ public class MultiSpectralDataSource extends DataSource {
           imager = true;
           sounder = false;
        }
-    }
-
-    public List getDataChoices() {
-       return myDataChoices;
     }
 
     /**

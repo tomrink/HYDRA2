@@ -25,8 +25,6 @@ public class GenericDataSource extends DataSource {
 
    ArrayList<FieldInfo> swathFields = new ArrayList<FieldInfo>();
    
-   ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
-
 
    public GenericDataSource(File directory) {
      this(directory.listFiles());

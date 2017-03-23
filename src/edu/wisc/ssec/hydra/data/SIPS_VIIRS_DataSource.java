@@ -29,7 +29,6 @@ public abstract class SIPS_VIIRS_DataSource extends DataSource {
 
    File[] files = null;
 
-   ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
    ArrayList<SwathAdapter> swathAdapters = new ArrayList<SwathAdapter>();
    
    String[] bandNames = null;
@@ -132,10 +131,6 @@ public abstract class SIPS_VIIRS_DataSource extends DataSource {
       
       
       dateTimeStamp = DataSource.getDateTimeStampFromFilename(files[0].getName());
-   }
-   
-   public List getDataChoices() {
-       return myDataChoices;
    }
    
    RangeProcessor buildRadToBT(HashMap metadata, String btLUTname) throws Exception  {

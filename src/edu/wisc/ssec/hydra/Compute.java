@@ -1,9 +1,7 @@
 package edu.wisc.ssec.hydra;
 
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
-import edu.wisc.ssec.hydra.data.DataChoice;
 import edu.wisc.ssec.hydra.data.DataSelection;
-import edu.wisc.ssec.hydra.data.DataSource;
 
 import javax.swing.JComponent;
 import javax.swing.JFrame;
@@ -14,25 +12,20 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.Cursor;
 
 import visad.Data;
 
 
-public class Compute implements SelectionListener {
+public abstract class Compute implements SelectionListener {
  
-   JComponent gui;
-
    int activeIndex;
    Operand[] operands;
    int numOperands;
    Object[] operators;
    int numOperators;
 
-   JFrame frame;
    String title;
-
-   public DataBrowser dataBrowser;
+   DataBrowser dataBrowser;
 
    public Compute(int numOperands, int numOperators, String title) {
       this.numOperands = numOperands;
@@ -56,34 +49,18 @@ public class Compute implements SelectionListener {
       this(numOperands, 0, title);
    }
 
-   /** This is for manual initialization and cloning
-    *  Note: does not call addSelectionListenerToAll
-    */
    public Compute() {
    }
 
-   public JComponent buildGUI() {
-      return null;
-   }
+   public abstract JComponent buildGUI();
 
-   public Data compute() throws Exception {
-      return null;
-   }
+   public abstract Data compute() throws Exception;
 
-   public void createDisplay(Data data, int mode, int windowNumber) throws Exception {
-   }
+   public abstract void createDisplay(Data data, int mode, int windowNumber) throws Exception;
 
-   void setCursorToWait() {
-      frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-   }
-
-   void setCursorToDefault() {
-      frame.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
-   }
-
-   public String getOperationName() {
-      return null;
-   }
+   public abstract String getOperationName();
+   
+   public abstract void updateUI(SelectionEvent e);
 
    public JComponent makeActionComponent() {
       JButton create = new JButton("Create");
@@ -95,10 +72,13 @@ public class Compute implements SelectionListener {
          }
 
          public void actionPerformed(ActionEvent e) {
-             /** new stuff, incomplete */
-             LeafInfo info = new LeafInfo(compute.clone(), getOperationName(), 0);
-             DefaultMutableTreeNode node = new DefaultMutableTreeNode(info);
-             dataBrowser.addUserTreeNode(node);
+             try {
+                LeafInfo info = new LeafInfo(compute.clone(), getOperationName(), 0);
+                DefaultMutableTreeNode node = new DefaultMutableTreeNode(info);
+                dataBrowser.addUserTreeNode(node);                
+             } catch (Exception exc) {
+                exc.printStackTrace();
+             }
          }
       };
       create.addActionListener(new MyListener(this));
@@ -109,11 +89,11 @@ public class Compute implements SelectionListener {
    }
 
    public void show(int x, int y, String title) {
-      gui = buildGUI();
+      JComponent gui = buildGUI();
       gui.add(makeActionComponent());
       SelectionAdapter.addSelectionListenerToAll(this);   
       
-      frame = Hydra.createAndShowFrame(title, gui);
+      JFrame frame = Hydra.createAndShowFrame(title, gui);
       frame.setLocation(x,y);
       final Compute compute = this;
       frame.addWindowListener(new WindowAdapter() {
@@ -153,28 +133,10 @@ public class Compute implements SelectionListener {
 
       operand.name = e.getName();
       operand.isEmpty = false;
-   
+      
       updateUI(e);
    }
    
-   public void setOperand(int operIdx, DataSource dataSource, Selection selection, DataChoice dataChoice) {
-      Operand operand = operands[operIdx];
-      operand.dataSource = dataSource;
-      operand.selection = selection;
-      operand.dataChoice = dataChoice;
-      
-//      DataSelection dataSelection = new MultiDimensionSubset();
-//      operand.selection.applyToDataSelection(dataSelection);
-//      operand.dataSelection = dataSelection;
-      operand.compute = null;
-      
-      // what should this be? operand.name = ;
-      operand.isEmpty = false;
-   }
-
-   public void updateUI(SelectionEvent e) {
-   }
-
    public void setActive(int idx) {
       activeIndex = idx;
    }
@@ -195,7 +157,7 @@ public class Compute implements SelectionListener {
       return compute;
    }
 
-   public Compute clone() {
-      return null;
+   public Compute clone() throws CloneNotSupportedException {
+      throw new CloneNotSupportedException("Cant clone abstract Compute");
    }
 }

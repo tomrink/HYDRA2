@@ -28,7 +28,6 @@ public class NOAA_VIIRS_DataSource extends DataSource {
 
    File[] files = null;
 
-   ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
    ArrayList<SwathAdapter> swathAdapters = new ArrayList<SwathAdapter>();
    
    String[] bandNames = null;
@@ -188,10 +187,6 @@ public class NOAA_VIIRS_DataSource extends DataSource {
       setDataChoice(adapter, 0, getProductName(prodStr));
    }
 
-   public List getDataChoices() {
-       return myDataChoices;
-   }
-   
    public HashMap fillMetadataTable(String xtrack, String track, 
                                     String array, String range, String geoXtrack, String geoTrack,
                                     String lonArray, String latArray, String[] arrayDims, String[] lonArrayDims, String[] latArrayDims,

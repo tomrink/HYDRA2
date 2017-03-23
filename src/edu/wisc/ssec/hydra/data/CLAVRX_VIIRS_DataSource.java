@@ -27,7 +27,6 @@ public class CLAVRX_VIIRS_DataSource extends DataSource {
 
    File[] files = null;
 
-   ArrayList<DataChoice> myDataChoices;
    ArrayList<SwathAdapter> swathAdapters;
    
    String[] bandNames = null;
@@ -115,10 +114,6 @@ public class CLAVRX_VIIRS_DataSource extends DataSource {
       }
    }
 
-   public List getDataChoices() {
-       return myDataChoices;
-   }
-   
    public HashMap fillMetadataTable(String xtrack, String track, 
                                     String array, String range, String geoXtrack, String geoTrack,
                                     String lonArray, String latArray, String[] arrayDims, String[] lonArrayDims, String[] latArrayDims,

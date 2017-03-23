@@ -22,4 +22,8 @@ public interface Selection {
    public abstract String getSelectedName();
    
    public abstract void setSelected(Object obj);
+   
+   public abstract Object getLastSelectedLeafPath();
+   
+   public abstract Object getLastSelectedComp();
 }

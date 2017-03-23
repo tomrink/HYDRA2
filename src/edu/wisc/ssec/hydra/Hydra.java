@@ -33,7 +33,6 @@ import edu.wisc.ssec.hydra.data.DataSelection;
 //import ucar.unidata.ui.colortable.ColorTableDefaults;
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.MultiDimensionSubset;
-import edu.wisc.ssec.hydra.data.MultiSpectralDataSource;
 import edu.wisc.ssec.adapter.LongitudeLatitudeCoordinateSystem;
 import edu.wisc.ssec.adapter.ReprojectSwath;
 
@@ -131,7 +130,7 @@ public class Hydra {
    
    public static WorldDataBank WDBIIadapter = null;
 
-   static int numDataSourcesOpened = 0;
+   private static int numDataSourcesOpened = 0;
 
    public boolean multiDisplay = false;
    public boolean singleChannelDisplay = true;
@@ -166,6 +165,7 @@ public class Hydra {
      numDataSourcesOpened++;
      
      dataSourceId = numDataSourcesOpened;
+     dataSource.setDataSourceId(dataSourceId);
      dataSourceMap.put(dataSourceId, dataSource);
 
      selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
@@ -190,6 +190,7 @@ public class Hydra {
       numDataSourcesOpened++;
       
       dataSourceId = numDataSourcesOpened;
+      dataSource.setDataSourceId(dataSourceId);
       dataSourceMap.put(dataSourceId, dataSource);
 
       if (dataSource.isSounder()) {
@@ -208,10 +209,6 @@ public class Hydra {
       selection = new BasicSelection(dataSource, this, numDataSourcesOpened);
    }
    
-   public int getDataSourceId() {
-      return dataSourceId;
-   }
-   
    public DataSource getDataSource() {
       return dataSource;
    }
@@ -225,7 +222,7 @@ public class Hydra {
    }
 
    public String toString() {
-     return numDataSourcesOpened+": "+sourceDescription+" "+dateTimeStamp;
+     return dataSourceId+": "+sourceDescription+" "+dateTimeStamp;
    }
 
    public void setCursorToWait() {
@@ -255,7 +252,7 @@ public class Hydra {
    public boolean createImageDisplay(int mode) {
       return createImageDisplay(mode, 0);
    }
-
+   
    public boolean createImageDisplay(int mode, int windowNumber) {
      DataChoice choice;
      
@@ -264,7 +261,7 @@ public class Hydra {
         selection.applyToDataSelection(dataSelection);
         choice = selection.getSelectedDataChoice();
         try {
-           MultiChannelViewer mcv = new MultiChannelViewer(this, choice, sourceDescription, dateTimeStamp, windowNumber, numDataSourcesOpened);
+           MultiChannelViewer mcv = new MultiChannelViewer(this, choice, sourceDescription, dateTimeStamp, windowNumber, dataSourceId);
            selectFrame = mcv.getFrame();
         } catch (Exception e) {
            e.printStackTrace();
@@ -276,7 +273,7 @@ public class Hydra {
         selection.applyToDataSelection(dataSelection);
         choice = selection.getSelectedDataChoice();
         try {
-           AtmSoundingViewer asv = new AtmSoundingViewer(choice, sourceDescription, dateTimeStamp, windowNumber, numDataSourcesOpened);
+           AtmSoundingViewer asv = new AtmSoundingViewer(choice, sourceDescription, dateTimeStamp, windowNumber, dataSourceId);
            asv.setDataChoices(dataSource.getDataChoices());
            selectFrame = asv.getFrame();
         } catch (Exception e) {
@@ -392,7 +389,7 @@ public class Hydra {
 
      return imageCreated;
    }
-
+   
    public static int[][][] getMouseFunctionMap() {
 
       boolean isMac = false;
@@ -525,6 +522,22 @@ public class Hydra {
        }
        return fltFld;
     }
+    
+    public static boolean getIsLatLonOrder(FlatField field) throws VisADException, RemoteException {
+      boolean isLL = false;
+      FunctionType fnc_type = (FunctionType) field.getType();
+      RealTupleType rtt = fnc_type.getDomain();
+      if (rtt.equals(RealTupleType.LatitudeLongitudeTuple)) {
+        isLL = true;
+      }
+      else if (!rtt.equals(RealTupleType.SpatialEarth2DTuple)) {
+        rtt = fnc_type.getDomain().getCoordinateSystem().getReference();
+        if ( rtt.equals(RealTupleType.LatitudeLongitudeTuple)) {
+          isLL = true;
+        }
+      }
+      return isLL;
+    }    
 
     public static FlatField cloneButRangeType(RealType newRange, FlatField ffield, boolean copy) throws VisADException, RemoteException {
         FunctionType ftype = (FunctionType) ffield.getType();
@@ -758,7 +771,9 @@ public class Hydra {
                 }
 
                 //Add content to the window.
-                frame.getContentPane().add(component);
+                if (component != null) {
+                  frame.getContentPane().add(component);
+                }
 
                 if (size != null) {
                   frame.setPreferredSize(size);
@@ -793,7 +808,9 @@ public class Hydra {
         JFrame frame = new JFrame(title);
 
         //Add content to the window.
-        frame.getContentPane().add(component);
+        if (component != null) {
+           frame.getContentPane().add(component);
+        }
 
         if (size != null) {
           frame.setPreferredSize(size);
@@ -1037,17 +1054,66 @@ public class Hydra {
       double w = rect.getWidth();
       double y = rect.getY();
       double h = rect.getHeight();
-      // TODO: make this better
-      double f = 0.58;
-      if (mapProj instanceof GEOSProjection) {
-         f = 0.0;
+      
+      // traverse projection box perimeter to determine lon/lat range.
+      int npts = 40;
+      float[][] gringLonLat = new float[2][npts*4];
+      
+      int cnt = 0;
+      double[] leftUp = new double[] {x, y+h};
+      double[] leftDn = new double[] {x, y};
+      double[] rghtDn = new double[] {x+w, y};
+      double[] rghtUp = new double[] {x+w, y+h};
+      double[] cntrUp = new double[] {leftUp[0]+w/2, leftUp[1]};      
+      
+      double[][] xy = new double[2][1];
+      double delx = (leftDn[0] - leftUp[0])/(npts);
+      double dely = (leftDn[1] - leftUp[1])/(npts);
+      for (int k=0; k<npts; k++) {
+         xy[0][0] = leftUp[0] + k*delx;
+         xy[1][0] = leftUp[1] + k*dely;
+         gringLonLat[0][cnt] = (float) mapProj.getLatLon(xy).getLongitude().getValue();
+         gringLonLat[1][cnt] = (float) mapProj.getLatLon(xy).getLatitude().getValue();
+         cnt++;
       }
       
-      double[] leftUp = new double[] {x-f*w, y+f*h+h};
-      double[] leftDn = new double[] {x-f*w, y-f*h};
-      double[] rghtDn = new double[] {x+f*w+w, y-f*h};
-      double[] rghtUp = new double[] {x+f*w+w, y+f*h+h};
-      double[] cntrUp = new double[] {leftUp[0]+w/2, leftUp[1]};
+      delx = (rghtDn[0] - leftDn[0])/(npts);
+      dely = (rghtDn[1] - leftDn[1])/(npts);      
+      for (int k=0; k<npts; k++) {
+         xy[0][0] = leftDn[0] + k*delx;
+         xy[1][0] = leftDn[1] + k*dely;
+         gringLonLat[0][cnt] = (float) mapProj.getLatLon(xy).getLongitude().getValue();
+         gringLonLat[1][cnt] = (float) mapProj.getLatLon(xy).getLatitude().getValue();
+         cnt++;
+      }     
+      
+      delx = (rghtUp[0] - rghtDn[0])/(npts);
+      dely = (rghtUp[1] - rghtDn[1])/(npts);           
+      for (int k=0; k<npts; k++) {
+         xy[0][0] = rghtDn[0] + k*delx;
+         xy[1][0] = rghtDn[1] + k*dely;
+         gringLonLat[0][cnt] = (float) mapProj.getLatLon(xy).getLongitude().getValue();
+         gringLonLat[1][cnt] = (float) mapProj.getLatLon(xy).getLatitude().getValue();
+         cnt++;
+      }
+      
+      delx = (leftUp[0] - rghtUp[0])/(npts);
+      dely = (leftUp[1] - rghtUp[1])/(npts);                 
+      for (int k=0; k<npts; k++) {
+         xy[0][0] = rghtUp[0] + k*delx;
+         xy[1][0] = rghtUp[1] + k*dely;
+         gringLonLat[0][cnt] = (float) mapProj.getLatLon(xy).getLongitude().getValue();
+         gringLonLat[1][cnt] = (float) mapProj.getLatLon(xy).getLatitude().getValue();
+         cnt++;
+      }      
+      float[] lonlohi = Hydra.minmax(gringLonLat[0]);
+      float[] latlohi = Hydra.minmax(gringLonLat[1]);
+      
+      float latMin = latlohi[0];
+      float latMax = latlohi[1];
+      float lonWest = lonlohi[0];
+      float lonEast = lonlohi[1];
+      
       
       LatLonPoint llp_leftUp = mapProj.getLatLon(new double[][] {{leftUp[0]}, {leftUp[1]}});
       LatLonPoint llp_leftDn = mapProj.getLatLon(new double[][] {{leftDn[0]}, {leftDn[1]}});
@@ -1055,37 +1121,43 @@ public class Hydra {
       LatLonPoint llp_rghtDn = mapProj.getLatLon(new double[][] {{rghtDn[0]}, {rghtDn[1]}});
       LatLonPoint llp_cntrUp = mapProj.getLatLon(new double[][] {{cntrUp[0]}, {cntrUp[1]}});
       
+      boolean anyCornerMissing = false;
+      
       float latA = (float) (llp_leftUp.getLatitude()).getValue();
       float latB = (float) (llp_leftDn.getLatitude()).getValue();
       float latC = (float) (llp_rghtDn.getLatitude()).getValue();
       float latD = (float) (llp_rghtUp.getLatitude()).getValue();
-      float latCntr = (float) (llp_cntrUp.getLatitude()).getValue();
-
-      float latMin = (float) (llp_leftDn.getLatitude()).getValue();
-      float latMax = (float) (llp_leftUp.getLatitude()).getValue();
-      float lonWest = (float) (llp_leftUp.getLongitude()).getValue();
-      float lonEast = (float) (llp_rghtUp.getLongitude()).getValue();
-
-      if (latA> 0 && latB>0 && latC>0 && latD>0) {
-         if (latCntr > latMax) latMax = 90;
-      }
-
+      
+      anyCornerMissing = Float.isNaN(latA) || Float.isNaN(latB) || Float.isNaN(latC) || Float.isNaN(latD);
+      
       float lonA = (float) (llp_leftUp.getLongitude()).getValue();
       float lonB = (float) (llp_leftDn.getLongitude()).getValue();
       float lonC = (float) (llp_rghtDn.getLongitude()).getValue();
       float lonD = (float) (llp_rghtUp.getLongitude()).getValue();
+      
+      anyCornerMissing = Float.isNaN(lonA) || Float.isNaN(lonB) || Float.isNaN(lonC) || Float.isNaN(lonD);      
 
+      float latCntr = (float) (llp_cntrUp.getLatitude()).getValue();
+      if (latA> 0 && latB>0 && latC>0 && latD>0) {
+         if (latCntr > latMax) latMax = 90;
+      }
+      
       int numCrossed = 0;
 
-      if (crossesGreenwich(leftUp, leftDn, rghtDn, rghtUp, lonA, lonB, lonC, lonD, 0, mapProj)) numCrossed++;
-      if (crossesGreenwich(leftUp, leftDn, rghtDn, rghtUp, lonA, lonB, lonC, lonD, 1, mapProj)) numCrossed++;
-      if (crossesGreenwich(leftUp, leftDn, rghtDn, rghtUp, lonA, lonB, lonC, lonD, 2, mapProj)) numCrossed++;
-      if (crossesGreenwich(leftUp, leftDn, rghtDn, rghtUp, lonA, lonB, lonC, lonD, 3, mapProj)) numCrossed++;
+      // TODO: implement pole logic if 1 to 3 corners off Earth, for now skip...
+      //       assumes pole not contained in geotationary projection.
+      if (!anyCornerMissing) { 
+         if (crossesGreenwich(leftUp, leftDn, rghtDn, rghtUp, lonA, lonB, lonC, lonD, 0, mapProj)) numCrossed++;
+         if (crossesGreenwich(leftUp, leftDn, rghtDn, rghtUp, lonA, lonB, lonC, lonD, 1, mapProj)) numCrossed++;
+         if (crossesGreenwich(leftUp, leftDn, rghtDn, rghtUp, lonA, lonB, lonC, lonD, 2, mapProj)) numCrossed++;
+         if (crossesGreenwich(leftUp, leftDn, rghtDn, rghtUp, lonA, lonB, lonC, lonD, 3, mapProj)) numCrossed++;
+      }
 
+      // if GM crossed zero or two, then  box does not contain North or South Pole    
       if (numCrossed != 1 || numCrossed == 0) {
          GSHHGadapter.setRegion(latMin, latMax, lonWest, lonEast);
       } 
-      else {
+      else { // if GM crosses only one box side then box contains North or South Pole
          if (latMin < 0) latMin = -90f;
          if (latMin > 0) latMax = 90f;
          GSHHGadapter.setRegion(latMin, latMax);
@@ -1211,20 +1283,215 @@ public class Hydra {
        double scaleY = ((GEOSProjection)coordSys).getScaleY();
        double offsetX = ((GEOSProjection)coordSys).getOffsetX();
        double offsetY = ((GEOSProjection)coordSys).getOffsetY();
-
+       
        double firstX = setX.getFirst()*scaleX + offsetX;
        double firstY = setY.getFirst()*scaleY + offsetY;
 
        double lastX = setX.getLast()*scaleX + offsetX;
-       double lastY = setY.getLast()*scaleY + offsetY;   
-
+       double lastY = setY.getLast()*scaleY + offsetY;
+       
        Linear2DSet dSetRadians = new Linear2DSet(firstX, lastX, lenX, firstY, lastY, lenY);
        fltFld = new FlatField(new FunctionType(RealTupleType.Generic2D, rangeType), dSetRadians);
        fltFld.setSamples(rangeVals, false);  
        return fltFld;
   }
 
+  public static FlatField goesResample(FlatField fld, Linear2DSet targetSet) throws VisADException, RemoteException {
+     return goesResample(fld, targetSet, 2); 
+  }
+  
+  public static FlatField goesResample(FlatField fld, Linear2DSet targetSet, int mode) throws VisADException, RemoteException {
+          double targetStep = targetSet.getX().getStep();
+          FunctionType fncType = (FunctionType) fld.getType();
+          RealTupleType setType = ((SetType)targetSet.getType()).getDomain();
+          FunctionType targetType = new FunctionType(setType, fncType.getRange());
+          FlatField target = new FlatField(targetType, targetSet);
+          
+          Linear2DSet setR = null;
+          Set set = fld.getDomainSet();
+          if (set instanceof Linear2DSet) {
+             setR = (Linear2DSet) set;
+          }
+          else {
+             throw new VisADException("FlatField must have Linear2DSet domain, use resample");
+          }
+          double setStep = setR.getX().getStep();
+          
+          boolean upsample = ((targetStep/setStep) > 1);
+          
+          
+          Linear1DSet setX = ((Linear2DSet)targetSet).getX();
+          Linear1DSet setY = ((Linear2DSet)targetSet).getY();
+          
+          int lenX = setX.getLength();
+          int lenY = setY.getLength();             
+          int lenXR = setR.getX().getLength();
+          int lenYR = setR.getY().getLength(); 
+          
+          float[][] values = fld.getFloats(false);
+          float[][] targetValues = new float[1][targetSet.getLength()];
+          java.util.Arrays.fill(targetValues[0], Float.NaN);          
+          
+          float[][] xgrid = setR.getX().valueToGrid(setX.getSamples(false));
+          float[][] ygrid = setR.getY().valueToGrid(setY.getSamples(false));
+          
+          if (!upsample) {
+             downsample(ygrid[0], xgrid[0], lenYR, lenXR, values, lenY, lenX, targetValues, mode);             
+          }
+          else {
+             int[] xidxs = new int[xgrid[0].length];
+             int[] yidxs = new int[ygrid[0].length];
 
+             for (int k=0; k<xidxs.length; k++) {
+                xidxs[k] = (int) Math.floor(xgrid[0][k]);
+             }
+             for (int k=0; k<yidxs.length; k++) {
+                yidxs[k] = (int) Math.floor(ygrid[0][k]);
+             }
+          
+             upsample(yidxs, xidxs, lenYR, lenXR, values, lenY, lenX, targetValues, mode);
+          }
+          
+          target.setSamples(targetValues, false);
+          
+          return target;
+   }
+  
+   public static void upsample(int[] yidxs, int[] xidxs, int lenY, int lenX, float[][] values, int targetLenY, int targetLenX, float[][] targetValues, int mode) {
+          for (int j=0; j<targetLenY; j++) {
+             int jR = yidxs[j];
+             if (jR >= 0 && jR < (lenY-1)) {
+             
+                for (int i=0; i<targetLenX; i++) {
+                   int iR = xidxs[i];
+                   if (iR >= 0 && iR < (lenX-1)) {
+                      int k = j*targetLenX + i;
+                      int kR = jR*lenX + iR;
+
+                      if (mode == 0) {
+                         targetValues[0][k] = values[0][kR];
+                      }
+                      else {
+                         float val = 0;
+                         val += values[0][kR];
+                         val += values[0][kR+1];
+                         val += values[0][kR+lenX];
+                         val += values[0][kR+lenX+1];
+
+                         targetValues[0][k] = val/4;
+                      }
+                   }
+                }
+             }
+          }       
+   }
+
+   public static void downsample(float[] yidxs, float[] xidxs, int lenY, int lenX, float[][] values, int targetLenY, int targetLenX, float[][] targetValues, int mode) {
+          int[] idxs = new int[2];
+          float[] flts = new float[4];
+          
+          for (int j=0; j<targetLenY; j++) {
+             int jR = (int) Math.floor(yidxs[j]);
+             if (jR >= 0 && jR < (lenY-1)) {
+             
+                for (int i=0; i<targetLenX; i++) {
+                   int iR = (int) Math.floor(xidxs[i]);
+                   if (iR >= 0 && iR < (lenX-1)) {
+                      int k = j*targetLenX + i;
+                      int kR = jR*lenX + iR;
+                      
+                      
+                      float dx00 = xidxs[i] - iR;
+                      float dy00 = yidxs[j] - jR;
+                      
+                      float dx01 = xidxs[i] - (iR + 1);
+                      float dy01 = yidxs[j] - jR;
+                      
+                      float dx10 = xidxs[i] - iR;
+                      float dy10 = yidxs[j] - (jR+1);
+                      
+                      float dx11 = xidxs[i] - (iR+1);
+                      float dy11 = yidxs[j] - (jR+1);                      
+                      
+                      float dst00 = (float) Math.sqrt(dx00*dx00 + dy00*dy00);
+                      float dst01 = (float) Math.sqrt(dx01*dx01 + dy01*dy01);
+                      float dst10 = (float) Math.sqrt(dx10*dx10 + dy10*dy10);
+                      float dst11 = (float) Math.sqrt(dx11*dx11 + dy11*dy11);
+                      
+                      float sum = dst00 + dst01 + dst10 + dst11;
+                      
+                      if (mode == 0) {
+                         flts[0] = dst00;
+                         flts[1] = dst01;
+                         flts[2] = dst10;
+                         flts[3] = dst11;
+                         Hydra.minmax(flts, 4, idxs);
+                         float val = Float.NaN;
+                         if (idxs[0] == 0) {
+                            val = values[0][kR];
+                         }
+                         else if (idxs[0] == 1) {
+                            val = values[0][kR+1];
+                         }
+                         else if (idxs[0] == 2) {
+                            val = values[0][kR+lenX];
+                         }
+                         else if (idxs[0] == 3) {
+                            val = values[0][kR+lenX+1];
+                         }
+                         targetValues[0][k] = val;
+                      }
+                      else {
+                         float w00 = dst00/sum;
+                         float w01 = dst01/sum;
+                         float w10 = dst10/sum;
+                         float w11 = dst11/sum;
+
+                         float val = 0;
+                         val += w00*values[0][kR];
+                         val += w01*values[0][kR+1];
+                         val += w10*values[0][kR+lenX];
+                         val += w11*values[0][kR+lenX+1];
+
+                         targetValues[0][k] = val;
+                      }
+                   }
+                }
+             }
+          }       
+   }
+   
+   public static FlatField normalizedDifference(FlatField target, FlatField red, int mode) throws VisADException, RemoteException {
+       Linear2DSet targetSet = (Linear2DSet) target.getDomainSet();
+       
+       RealType newRangeType = RealType.getRealType("ndvi");
+       FlatField ndvi = new FlatField(new FunctionType(((SetType)targetSet.getType()).getDomain(), newRangeType), targetSet);     
+       
+       Linear1DSet setX = ((Linear2DSet)targetSet).getX();
+       Linear1DSet setY = ((Linear2DSet)targetSet).getY(); 
+
+       int lenX = setX.getLength();
+       int lenY = setY.getLength();             
+
+       float[][] targetValues = target.getFloats(false);
+       float[][] ndviValues = new float[1][targetSet.getLength()];
+       java.util.Arrays.fill(ndviValues[0], Float.NaN);
+
+
+       float[][] redValues = goesResample(red, targetSet, mode).getFloats(false);
+       
+       for (int j=0; j<lenY; j++) {
+          for (int i=0; i<lenX; i++) {
+             int idx = j*lenX + i;
+             ndviValues[0][idx] = (targetValues[0][idx] - redValues[0][idx])/(targetValues[0][idx] + redValues[0][idx]);
+          }
+       }
+          
+       ndvi.setSamples(ndviValues, false);
+      
+       return ndvi;
+   }   
+   
    public static MapProjection getDataProjection(FlatField image) throws VisADException, RemoteException {
       MapProjection mp = null;
       //- get MapProjection from incoming image.  If none, use default method

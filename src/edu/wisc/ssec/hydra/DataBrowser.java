@@ -49,7 +49,7 @@ import java.util.HashMap;
 
 public class DataBrowser extends HydraDisplay implements ActionListener, TreeSelectionListener, TreeExpansionListener {
 
-   public static String version = "4.0.0";
+   public static String version = "4.2.0";
 
    private static DataBrowser instance = null;
 
@@ -90,6 +90,8 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
    HashMap<DefaultMutableTreeNode, Hydra> datasetToHydra = new HashMap<>();
 
    HashMap<DefaultMutableTreeNode, TreePath> datasetToDefaultPath = new HashMap<>();
+   
+   HashMap<TreePath, TreePath> datasetToLastPath = new HashMap<>();
 
    HashMap<DefaultMutableTreeNode, PreviewSelection> datasetToDefaultComp = new HashMap<>();
    
@@ -98,11 +100,13 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
    Hydra hydra = null;
 
    DefaultMutableTreeNode selectedLeafNode = null;
-
+   
    DefaultMutableTreeNode selectedNode = null;
    
    TreePath currentDatasetPath = null;
-
+   
+   TreePath lastDatasetPath = null;
+   
    FormulaSelection formulaSelection = null;
 
    int cnt = 0;
@@ -154,6 +158,7 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
       rootModel = new DefaultTreeModel(root);
 
       rootTree = new JTree(rootModel);
+      rootTree.setExpandsSelectedPaths(false);
       rootTree.setShowsRootHandles(true);
       rootTree.setRootVisible(false);
       render = new DefaultTreeCellRenderer();
@@ -265,18 +270,25 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
       JMenu fileMenu = new JMenu("File");
       fileMenu.getPopupMenu().setLightWeightPopupEnabled(false);
       menuBar.add(fileMenu);
-
+      
       JMenuItem openFile = new JMenuItem("File(s)");
       openFile.addActionListener(this);
       openFile.setActionCommand("OpenFile");
+      
+      JMenu dirMenu = new JMenu("Directory");
+      dirMenu.getPopupMenu().setLightWeightPopupEnabled(false);
 
-      JMenuItem openDir = new JMenuItem("VIIRS directory");
+      JMenuItem openDir = new JMenuItem("VIIRS");
       openDir.addActionListener(this);
       openDir.setActionCommand("OpenDirV");
       
-      JMenuItem openDirA = new JMenuItem("AHI directory");
+      JMenuItem openDirA = new JMenuItem("AHI");
       openDirA.addActionListener(this);
       openDirA.setActionCommand("OpenDirA");
+      
+      JMenuItem openDirABI = new JMenuItem("ABI");
+      openDirABI.addActionListener(this);
+      openDirABI.setActionCommand("OpenDirABI");      
 
       JMenuItem openRemote = new JMenuItem("Remote");
       openRemote.addActionListener(this);
@@ -287,8 +299,10 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
       exitItem.setActionCommand("Exit");
 
       fileMenu.add(openFile);
-      fileMenu.add(openDir);
-      fileMenu.add(openDirA);
+      fileMenu.add(dirMenu);
+      dirMenu.add(openDir);
+      dirMenu.add(openDirA);
+      dirMenu.add(openDirABI);
       // not yet, fileMenu.add(openRemote);
       fileMenu.add(exitItem);
 
@@ -364,11 +378,13 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
            
            TreePath tpath;
            if (!(node.getParent() == userNode)) {  
-              tpath = new TreePath(((DefaultMutableTreeNode)node.getParent()).getPath());              
+              tpath = new TreePath(((DefaultMutableTreeNode)node.getParent()).getPath());  
               currentDatasetPath = tpath;
+              datasetToLastPath.put(currentDatasetPath, new TreePath(((DefaultMutableTreeNode)node).getPath())); 
+              lastDatasetPath = currentDatasetPath;
            }  
-           else {
-              tpath = currentDatasetPath;
+           else { // when selected a combinations leafnode, highlight the dataset currently shown in PreviewDisplay
+               tpath = currentDatasetPath;
            }
            
            rootTree.removeTreeSelectionListener(this);
@@ -380,20 +396,30 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
         else {
            currentDatasetPath = new TreePath(((DefaultMutableTreeNode)node).getPath());
            selectedNode = node;
+           if (selectedNode.equals(datasetsNode)) {
+              return;
+           }
+           
            TreePath dfltPath = datasetToDefaultPath.get(node);
+           TreePath path = datasetToLastPath.get(currentDatasetPath);
+           if (path == null) path = dfltPath;
            
            rootTree.removeTreeSelectionListener(this);
-           rootTree.addSelectionPath(dfltPath);
+           rootTree.addSelectionPath(path);
            rootTree.addTreeSelectionListener(this);
            
-           selectedLeafNode = (DefaultMutableTreeNode) dfltPath.getLastPathComponent();
+           selectedLeafNode = (DefaultMutableTreeNode) path.getLastPathComponent();
            hydra = datasetToHydra.get(selectedLeafNode.getParent());
+           
+           if (lastDatasetPath != null && lastDatasetPath.equals(currentDatasetPath)) {
+              return;
+           }
+           lastDatasetPath = currentDatasetPath;
+           
            // This must be done manually here.
            hydra.getSelection().setSelected(selectedLeafNode);
            
            updateDisplayAction();
-           
-           updateSpatialTemporalSelectionComponent(datasetToDefaultComp.get(node));
         }
     }
     
@@ -486,6 +512,9 @@ public class DataBrowser extends HydraDisplay implements ActionListener, TreeSel
                    case "OpenDirA":
                       ds = Class.forName("edu.wisc.ssec.hydra.data.AHIDirectory");
                       break;
+                   case "OpenDirABI":
+                      ds = Class.forName("edu.wisc.ssec.hydra.data.ABIDirectory");
+                      break;                      
                 }
              }
              catch (Exception exc) {

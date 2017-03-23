@@ -36,9 +36,6 @@ public class NOAA_SNPP_DataSource extends DataSource {
 
    File[] files = null;
 
-   ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
-   //ArrayList<SwathAdapter> swathAdapters = new ArrayList<SwathAdapter>();
-   
    String[] bandNames = null;
    float[] centerWavelength = null;
    
@@ -322,10 +319,6 @@ public class NOAA_SNPP_DataSource extends DataSource {
       return aggrMSDs;      
    }
 
-   public List getDataChoices() {
-       return myDataChoices;
-   }
-   
    public String getDateTimeStamp() {
       return dateTimeStamp;
    }

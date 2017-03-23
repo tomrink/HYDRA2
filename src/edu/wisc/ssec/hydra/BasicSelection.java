@@ -86,7 +86,7 @@ public class BasicSelection extends SelectionAdapter {
         public void mousePressed(MouseEvent e) {
             int selRow = tree.getRowForLocation(e.getX(), e.getY());
             TreePath selPath = tree.getPathForLocation(e.getX(), e.getY());
-            if(selRow != -1) {
+            if(selRow > 0) {
               if(e.getClickCount() == 1) {
                   DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
                   if (node == null) return;
@@ -115,7 +115,7 @@ public class BasicSelection extends SelectionAdapter {
        else {
             NodeInfo info = (NodeInfo)nodeInfo;
             if (info.source == this) {
-               previewSelects[defaultIdx].updateBoxSelector();
+//               previewSelects[defaultIdx].updateBoxSelector(); Need this?
             }
        }       
     }
@@ -173,7 +173,12 @@ public class BasicSelection extends SelectionAdapter {
               index = k;
            }
        }
-       previewSelects[index].applyToDataSelection(dataSelection);
+       if (index != -1) {
+          if (previewSelects[index] == null) { // We haven't created one yet, go ahead and do so now.
+             makeGeoTimeSelect(dataChoice, index);          
+          }
+          previewSelects[index].applyToDataSelection(dataSelection);
+       }
        return index;
     }
 

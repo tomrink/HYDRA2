@@ -186,6 +186,9 @@ public class FourOperandCombine extends Compute {
       if (!operandEnabled[idx]) return;
       activeIndex = idx;
    }
+   
+   public void updateUI(SelectionEvent e) {
+   }
 
    public Data compute() throws Exception {
        Operand operandA = operands[0];

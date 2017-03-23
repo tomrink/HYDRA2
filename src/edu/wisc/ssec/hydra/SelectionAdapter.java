@@ -79,7 +79,4 @@ public abstract class SelectionAdapter implements Selection {
          selectionListeners.get(k).selectionPerformed(e);
       }
     }
-
-    public abstract Object getLastSelectedLeafPath();
-    public abstract Object getLastSelectedComp();
 }

@@ -16,14 +16,12 @@ public class HydraContext {
 
   private static HashMap<DataSource, HashMap<DataGroup, HydraContext>> contextMap = new HashMap<DataSource, HashMap<DataGroup, HydraContext>>();
 
-  private static HydraContext hydraContext = null;
-  private boolean useSubset = false;
   private MultiDimensionSubset subset = null;
   private Object selectBox = null;
 
   DataSource dataSource = null;
 
-  private static HydraContext last = null;
+  private static HydraContext lastManual = null;
 
   public static HydraContext getHydraContext(DataSource source, DataGroup dataCategory) {
     if (dataCategory == null) {
@@ -58,6 +56,7 @@ public class HydraContext {
   public static HydraContext getHydraContext(DataSource source) {
     if (dataSourceToContextMap.isEmpty()) {
       HydraContext hydraContext = new HydraContext();
+      hydraContext.dataSource = source;
       dataSourceToContextMap.put(source, hydraContext);
       return hydraContext;
     }
@@ -67,6 +66,7 @@ public class HydraContext {
     }
     else {
       HydraContext hydraContext = new HydraContext();
+      hydraContext.dataSource = source;
       dataSourceToContextMap.put(source, hydraContext);
       return hydraContext;
     }
@@ -106,19 +106,6 @@ public class HydraContext {
     }
   }
 
-
-  public static HydraContext getHydraContext() {
-    if (hydraContext == null) {
-      hydraContext =  new HydraContext();
-    }
-    return hydraContext;
-  }
-
-  public void removeHydraContext() {
-    // ????
-  }
- 
-
   public HydraContext() {
   }
 
@@ -139,12 +126,12 @@ public class HydraContext {
     return dataSource;
   }
 
-  public static HydraContext getLast() {
-    return last;
+  public static HydraContext getLastManual() {
+    return lastManual;
   }
 
-  public static void setLast(HydraContext context) {
-    last = context;
+  public static void setLastManual(HydraContext context) {
+    lastManual = context;
   }
 
   public synchronized MultiDimensionSubset getMultiDimensionSubset() {

@@ -54,7 +54,6 @@ public class MultiDimensionDataSource extends DataSource {
     private HashMap defaultSubset;
     public TrackAdapter track_adapter;
 
-    ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
     String dateTimeStamp;
     String description;
     boolean reduceBowTie = true;
@@ -788,10 +787,6 @@ public class MultiDimensionDataSource extends DataSource {
     }
 
     
-    public List getDataChoices() {
-       return myDataChoices;
-    }
-
     /**
      * Make and insert the <code>DataChoice</code>-s for this
      * <code>DataSource</code>.

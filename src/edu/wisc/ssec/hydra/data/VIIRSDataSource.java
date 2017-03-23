@@ -55,8 +55,6 @@ public class VIIRSDataSource extends DataSource {
 
    HashMap<String, NOAA_VIIRS_DataSource> bandIDtoDataSource = new HashMap<String, NOAA_VIIRS_DataSource>();
    
-   private ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
-
    HashMap<String, String> bandIDtoBandName = new HashMap<String, String>();
    HashMap<String, String> bandNameToBandID = new HashMap<String, String>();
 
@@ -202,10 +200,6 @@ public class VIIRSDataSource extends DataSource {
      myDataChoices.add(dataChoice);
    }
    
-   public List getDataChoices() {
-      return myDataChoices;
-   }
-
    public float getNadirResolution(DataChoice choice) throws Exception {
       String name = choice.getName();
       float res = 0;

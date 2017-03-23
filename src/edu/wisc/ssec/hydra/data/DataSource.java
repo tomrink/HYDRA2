@@ -16,9 +16,22 @@ import visad.*;
 
 public class DataSource {
    
+   ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
+   
+   private int dataSourceId = 0;
+   
    public DataSource() {
    }
-
+   
+   public int getDataSourceId() {
+      return dataSourceId;
+   }
+   
+   public void setDataSourceId(int uniqueId) {
+      if (dataSourceId == 0 && uniqueId != 0) { // can't be changed once set
+         dataSourceId = uniqueId;
+      }
+   }
 
    public boolean getDoFilter(DataChoice choice) {
        String name = choice.getName();
@@ -346,6 +359,21 @@ public class DataSource {
            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
            datetime = sdf.parse(str);
         }
+        else if (filename.startsWith("HS_H08") && filename.endsWith(".nc")) {
+            int idx = 7;
+            String yyyyMMdd = filename.substring(idx, idx+=8);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
+            idx += 1;
+            String HHmm = filename.substring(idx, idx+4);
+            datetime = sdf.parse(yyyyMMdd.concat(HHmm));          
+        }
+        else if (filename.contains("ABI-L2-CMIP")) {
+           int idx = filename.lastIndexOf("G16_s");
+           idx += 5;
+           String yyyyDDDHHmm = filename.substring(idx, idx+11);
+           SimpleDateFormat sdf = new SimpleDateFormat("yyyyDDDHHmm");
+           datetime = sdf.parse(yyyyDDDHHmm);
+        }
      }
      catch (Exception e) {
         return -1;
@@ -417,9 +445,9 @@ public class DataSource {
       return sortedList;
   }
   
-  public static DataChoice getDataChoiceByName(ArrayList<DataChoice> choices, String name) {
-     for (int i=0; i<choices.size(); i++) {
-        DataChoice choice = choices.get(i);
+  public DataChoice getDataChoiceByName(String name) {
+     for (int i=0; i<myDataChoices.size(); i++) {
+        DataChoice choice = myDataChoices.get(i);
         if (choice.getName().equals(name)) {
            return choice;
         }
@@ -436,7 +464,7 @@ public class DataSource {
   }
   
   public List getDataChoices() {
-     return null;
+     return myDataChoices;
   }
   
   public String getDateTimeStamp() {

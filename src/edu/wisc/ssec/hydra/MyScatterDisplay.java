@@ -312,15 +312,13 @@ public class MyScatterDisplay extends HydraDisplay {
          
          for (int k=0; k<n_selectors; k++) {
            SubsetRubberBandBox X_subsetBox =
-              new SubsetRubberBandBox(getIsLatLon(X_field), X_field,
-                      ((MapProjectionDisplayJ3D)dspMasterX).getDisplayCoordinateSystem(), 0, false);
+              new SubsetRubberBandBox(X_field, ((MapProjectionDisplayJ3D)dspMasterX).getDisplayCoordinateSystem(), 0, false);
            X_subsetBox.setColor(selectorColors[k]);
 
            ImageBoxSelector markX = new ImageBoxSelector(X_subsetBox, X_field.getDomainSet(), dspMasterX, selectorColors[k], (float)k+1, statsTable);
 
            SubsetRubberBandBox Y_subsetBox =
-              new SubsetRubberBandBox(getIsLatLon(Y_field), Y_field,
-                 ((MapProjectionDisplayJ3D)dspMasterY).getDisplayCoordinateSystem(), 0, false);
+              new SubsetRubberBandBox(Y_field, ((MapProjectionDisplayJ3D)dspMasterY).getDisplayCoordinateSystem(), 0, false);
            Y_subsetBox.setColor(selectorColors[k]);
            ImageBoxSelector markY = new ImageBoxSelector(Y_subsetBox, Y_field.getDomainSet(), dspMasterY, selectorColors[k], (float)k+1, statsTable);
 
@@ -1555,22 +1553,6 @@ public class MyScatterDisplay extends HydraDisplay {
         }
       }
       return new float[] {min, max};
-    }
-
-    public boolean getIsLatLon(FlatField field) throws VisADException, RemoteException {
-      boolean isLL = false;
-      FunctionType fnc_type = (FunctionType) field.getType();
-      RealTupleType rtt = fnc_type.getDomain();
-      if (rtt.equals(RealTupleType.LatitudeLongitudeTuple)) {
-        isLL = true;
-      }
-      else if (!rtt.equals(RealTupleType.SpatialEarth2DTuple)) {
-        rtt = fnc_type.getDomain().getCoordinateSystem().getReference();
-        if ( rtt.equals(RealTupleType.LatitudeLongitudeTuple)) {
-          isLL = true;
-        }
-      }
-      return isLL;
     }
 }
 

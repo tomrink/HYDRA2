@@ -32,21 +32,27 @@ public class GEOSDataSource extends DataSource {
   HashMap<String, Variable> projYCoordVars = new HashMap<>();
   HashMap<String, Variable> timeCoordVars = new HashMap<>();
 
-  private ArrayList<DataChoice> myDataChoices = new ArrayList<>();
   private ArrayList<GOESGridAdapter> adapters = new ArrayList<>();
   
   double default_stride = 10;
   
+  boolean unpack = false;
+  
   String dateTimeStamp;
   
   public GEOSDataSource(File file) {
-     this(file, 4);
+     this(file, 10);
+  }
+  
+  public GEOSDataSource(File file, double default_stride) {
+     this(file, default_stride, false);
   }
 
-  public GEOSDataSource(File file, double default_stride) {
+  public GEOSDataSource(File file, double default_stride, boolean unpack) {
     
     this.default_stride = default_stride;
     this.dateTimeStamp = DataSource.getDateTimeStampFromFilename(file.getName());
+    this.unpack = unpack;
     
     try {
       init(file.getPath());
@@ -120,11 +126,6 @@ public class GEOSDataSource extends DataSource {
         if (varName.contains("longitude") || varName.contains("latitude")) { // don't want to display these
            continue;
         }
-        Attribute attr = var.findAttribute("coordinates");
-        if (attr != null) {
-           String str = attr.getStringValue();
-           String[] strs = str.split(" ");
-        }
         
         String[] dimNames = reader.getDimensionNames(varName);
         
@@ -138,10 +139,13 @@ public class GEOSDataSource extends DataSource {
               Object key = itr.next();
               Variable vr = projXCoordVars.get(key);
               String name = vr.getShortName();
-              String coordDimName = reader.getDimensionNames(name)[0];
-              if (dimNames[k].equals(coordDimName)) {
-                 varX = vr;
-                 break;
+              String[] vrDimsName = reader.getDimensionNames(name);
+              if (vrDimsName != null && vrDimsName.length > 0) {
+                 String coordDimName = vrDimsName[0];
+                 if (dimNames[k].equals(coordDimName)) {
+                    varX = vr;
+                    break;
+                 }
               }
            }
            
@@ -150,11 +154,14 @@ public class GEOSDataSource extends DataSource {
               Object key = itr.next();
               Variable vr = projYCoordVars.get(key);
               String name = vr.getShortName();
-              String coordDimName = reader.getDimensionNames(name)[0];
-              if (dimNames[k].equals(coordDimName)) {
-                 varY = vr;
-                 break;
-              }
+              String[] vrDimsName = reader.getDimensionNames(name);
+              if (vrDimsName != null && vrDimsName.length > 0) {
+                 String coordDimName = vrDimsName[0];
+                 if (dimNames[k].equals(coordDimName)) {
+                    varY = vr;
+                    break;
+                 }
+              }   
            }
            
            itr = timeCoordVars.keySet().iterator();
@@ -162,13 +169,15 @@ public class GEOSDataSource extends DataSource {
               Object key = itr.next();
               Variable vr = timeCoordVars.get(key);
               String name = vr.getShortName();
-              String coordDimName = reader.getDimensionNames(name)[0];
-              if (dimNames[k].equals(coordDimName)) {
-                 varT = vr;
-                 break;
-              }
+              String[] vrDimsName = reader.getDimensionNames(name);
+              if (vrDimsName != null && vrDimsName.length > 0) {
+                 String coordDimName = vrDimsName[0];
+                 if (dimNames[k].equals(coordDimName)) {
+                    varT = vr;
+                    break;
+                 }
+              }                 
            }          
-
         }
 
         Variable projVar = projVarList.get(0); //TODO: may be more than one 
@@ -182,6 +191,9 @@ public class GEOSDataSource extends DataSource {
             metadata.put(GOESGridAdapter.gridX_name, geosInfo.getXDimName());
             metadata.put(GOESGridAdapter.gridY_name, geosInfo.getYDimName());
             metadata.put(MultiDimensionAdapter.fill_value_name, "_FillValue");
+            if (unpack) {
+               metadata.put("unpack", "true");
+            }
 
             GOESGridAdapter goesAdapter = new GOESGridAdapter(reader, metadata, geosInfo.getMapProjection(), default_stride);
             HashMap subset = goesAdapter.getDefaultSubset();
@@ -208,10 +220,6 @@ public class GEOSDataSource extends DataSource {
   
   public void addDataChoice(DataChoice dataChoice) {
       myDataChoices.add(dataChoice); 
-  }
-  
-  public List getDataChoices() {
-     return myDataChoices; 
   }
   
 
@@ -274,27 +282,51 @@ class GEOSInfo {
          tDimLen = reader.getDimensionLength(tDimName);      
       }
       
-      double scale_x = 5.588799029559623E-5;
-      double offset_x = -0.15371991730803744;
-      double scale_y = 5.588799029559623E-5;
-      double offset_y = -0.15371991730803744;
+      double scale_x=Double.NaN;
+      double offset_x=Double.NaN;
+      double scale_y=Double.NaN;
+      double offset_y=Double.NaN;
       
       HDFArray obj = (HDFArray) reader.getArrayAttribute(xVarName, "scale_factor");
       if (obj != null) {
-         scale_x = ((double[]) obj.getArray())[0];
+         if (obj.getType().equals(Double.TYPE)) {
+            scale_x = ((double[]) obj.getArray())[0];
+         }
+         else if (obj.getType().equals(Float.TYPE)) {
+            scale_x = ((float[]) obj.getArray())[0];
+         }
       }
       obj = (HDFArray) reader.getArrayAttribute(xVarName, "add_offset");
       if (obj != null) {
-         offset_x = ((double[]) obj.getArray())[0];
+         if (obj.getType().equals(Double.TYPE)) {
+            offset_x = ((double[]) obj.getArray())[0];
+         }
+         else if (obj.getType().equals(Float.TYPE)) {
+            offset_x = ((float[]) obj.getArray())[0];
+         }         
       }
 
       obj = (HDFArray) reader.getArrayAttribute(yVarName, "scale_factor");
       if (obj != null) {
-         scale_y = ((double[]) obj.getArray())[0];
+         if (obj.getType().equals(Double.TYPE)) {
+            scale_y = ((double[]) obj.getArray())[0];
+         }
+         else if (obj.getType().equals(Float.TYPE)) {
+            scale_y = ((float[]) obj.getArray())[0];
+         }         
       }
       obj = (HDFArray) reader.getArrayAttribute(yVarName, "add_offset");
       if (obj != null) {
-         offset_y = ((double[]) obj.getArray())[0];
+         if (obj.getType().equals(Double.TYPE)) {
+            offset_y = ((double[]) obj.getArray())[0];
+         }
+         else if (obj.getType().equals(Float.TYPE)) {
+            offset_y = ((float[]) obj.getArray())[0];
+         }                  
+      }
+      
+      if (Double.isNaN(scale_x) || Double.isNaN(offset_x) || Double.isNaN(scale_y) || Double.isNaN(offset_y)) {
+         throw new Exception("problem retrieving navigation scale/offset");
       }
       
       obj = (HDFArray) reader.getArrayAttribute(projVar.getShortName(), "longitude_of_projection_origin");
@@ -304,12 +336,17 @@ class GEOSInfo {
       else if (obj.getType().equals(Float.TYPE)) {
          subLonDegrees = (double) ((float[]) obj.getArray())[0];
       }
-
+      
       obj = (HDFArray) reader.getArrayAttribute(projVar.getShortName(), "sweep_angle_axis");
       String sweepAngleAxis = ((String[]) obj.getArray())[0];
 
-      // TODO: Determine display north/south orientation from coord vars mapped to radians.
-      double inverty = 1.0;
+      // ABI, AHI scan North to South so invert so that FGF (1,1) goes from SW -> NW in display space 
+      // because defaultMapArea can only understand (1,1) at display coordinates (-1,-1). This assumes
+      // intermediate coordinate system (radians, radians) maps increasing SW to NE.
+      double inverty = 1.0; // already inverted
+      if (scale_y < 0 && offset_y > 0) {
+         inverty = -1.0;
+      }
 
       if (sweepAngleAxis.equals("x")) {
          sweepAngleAxis = "GOES";
@@ -317,7 +354,6 @@ class GEOSInfo {
       else if (sweepAngleAxis.equals("y")) {
          sweepAngleAxis = "GEOS";
       }
-      sweepAngleAxis = "GEOS"; // TODO: investigate this. Seems to work better for AHI than using file indicated GOES
 
       GEOSTransform geosTran = new GEOSTransform(subLonDegrees, sweepAngleAxis);
 

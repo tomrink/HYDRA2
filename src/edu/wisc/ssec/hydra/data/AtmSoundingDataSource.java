@@ -24,7 +24,6 @@ public class AtmSoundingDataSource extends DataSource {
 
    SwathSoundingData data = null;
    
-   ArrayList<DataChoice> myDataChoices = new ArrayList<DataChoice>();
    ArrayList<SwathSoundingData> mySoundingDatas = new ArrayList<SwathSoundingData>();
    
 
@@ -51,10 +50,6 @@ public class AtmSoundingDataSource extends DataSource {
    void init(File file) throws Exception {
    }
    
-   public List getDataChoices() {
-       return myDataChoices;
-   }
-
    public SwathSoundingData buildAdapter(MultiDimensionReader reader, String xtrack, String track, String levelIndex, String levelsName, float[] levelValues, 
                                          String array, String range, String geoXtrack, String geoTrack,
                                          String lonArray, String latArray, String[] arrayDims, String[] lonArrayDims, String[] latArrayDims,

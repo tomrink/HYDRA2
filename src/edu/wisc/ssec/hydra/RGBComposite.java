@@ -22,6 +22,7 @@ import visad.georef.MapProjection;
 import visad.RealTupleType;
 import visad.RealType;
 import visad.FunctionType;
+import visad.Linear1DSet;
 
 
 public class RGBComposite extends Compute {
@@ -151,36 +152,93 @@ public class RGBComposite extends Compute {
           rgb = ReprojectSwath.swathToGrid(grd, new FlatField[] {red, grn, blu}, mode);
        }
        else if (noneRepro) {
-          FunctionType ftypeR = (FunctionType) red.getType();
-          Set dSetR = red.getDomainSet();
-          if (allGEOS) {
-             red = Hydra.makeGEOSRadiansDomainField(red, (GEOSProjection) coordSysR);
-             grn = Hydra.makeGEOSRadiansDomainField(grn, (GEOSProjection) coordSysG);
-             blu = Hydra.makeGEOSRadiansDomainField(blu, (GEOSProjection) coordSysB);
-          }
-          
           Set setR = red.getDomainSet();
           Set setG = grn.getDomainSet();
           Set setB = blu.getDomainSet();
+          
+          boolean setsEqual = false;
+          Set domSet = red.getDomainSet();
+          
+          if (setR.equals(setG) && setB.equals(setR)) {
+             setsEqual = true;
+          }
           
           int count = Hydra.getUniqueID();
           RealTupleType newRangeType = new RealTupleType(new RealType[] 
            {RealType.getRealType("redimage_"+count), RealType.getRealType("greenimage_"+count), RealType.getRealType("blueimage_"+count)});
           
-          rgb = new FlatField(new FunctionType(((SetType)setR.getType()).getDomain(), newRangeType), setR);
-          if (setR.equals(setG) && setG.equals(setB)) {
+          rgb = new FlatField(new FunctionType(((SetType)domSet.getType()).getDomain(), newRangeType), domSet);
+          if (setsEqual) {
              rgb.setSamples(new float[][] {red.getFloats(false)[0], grn.getFloats(false)[0], blu.getFloats(false)[0]}, false);
           }
           else {
-             FlatField ffG = (FlatField) grn.resample(setR, Data.NEAREST_NEIGHBOR, Data.NO_ERRORS);
-             FlatField ffB = (FlatField) blu.resample(setR, Data.NEAREST_NEIGHBOR, Data.NO_ERRORS);             
-             rgb.setSamples(new float[][] {red.getFloats(false)[0], ffG.getFloats(false)[0], ffB.getFloats(false)[0]}, false);
-          }
-          
-          if (allGEOS) {
-             FlatField tmp = new FlatField(new FunctionType(((SetType)dSetR.getType()).getDomain(), newRangeType), dSetR);
-             tmp.setSamples(rgb.getFloats(false), false);
-             rgb = tmp;
+             // find lowest resolution channel
+             int targetIdx = 0;
+             if (grnRes > redRes) {
+                targetIdx = 1;
+                if (bluRes > grnRes) {
+                   targetIdx = 2;
+                }
+             }
+             else if (bluRes > redRes) {
+                targetIdx = 2;
+             }
+             if (targetIdx == 1) domSet = grn.getDomainSet();
+             if (targetIdx == 2) domSet = blu.getDomainSet(); 
+             
+             //reset output domain set to loweset resolution input channel's domain
+             rgb = new FlatField(new FunctionType(((SetType)domSet.getType()).getDomain(), newRangeType), domSet);             
+             
+             if (allGEOS) {
+                red = Hydra.makeGEOSRadiansDomainField(red, (GEOSProjection) coordSysR);
+                grn = Hydra.makeGEOSRadiansDomainField(grn, (GEOSProjection) coordSysG);
+                blu = Hydra.makeGEOSRadiansDomainField(blu, (GEOSProjection) coordSysB);
+                setR = red.getDomainSet();
+                setG = grn.getDomainSet();
+                setB = blu.getDomainSet();
+             }             
+             
+             FlatField[] rgbComps = new FlatField[] {red, grn, blu};
+             Set[] rgbSets = new Set[] {setR, setG, setB};
+
+             Set targetSet = setR;
+             if (targetIdx == 1) targetSet = setG;
+             if (targetIdx == 2) targetSet = setB;  
+             int source1 = (targetIdx + 1) % 3;
+             int source2 = (targetIdx + 2) % 3;
+             
+             float[][] vals1;
+             if (!targetSet.equals(rgbSets[source1])) {
+                if (allGEOS) {
+                   vals1 = Hydra.goesResample(rgbComps[source1], (Linear2DSet)targetSet).getFloats(false);
+                }
+                else {
+                   vals1 = rgbComps[source1].resample(targetSet, Data.WEIGHTED_AVERAGE, Data.NO_ERRORS).getFloats(false);
+                }
+             }
+             else {
+                vals1 = rgbComps[source1].getFloats(false);
+             }
+             
+             float[][] vals2;
+             if (!targetSet.equals(rgbSets[source2])) {
+                if (allGEOS) {
+                   vals2 = Hydra.goesResample(rgbComps[source2], (Linear2DSet)targetSet).getFloats(false);
+                }
+                else {
+                   vals2 = rgbComps[source2].resample(targetSet, Data.WEIGHTED_AVERAGE, Data.NO_ERRORS).getFloats(false);                  
+                }
+             }
+             else {
+                vals2 = rgbComps[source2].getFloats(false);
+             }
+             
+             float[][] rgbRange = new float[3][];
+             rgbRange[targetIdx] = rgbComps[targetIdx].getFloats(false)[0];
+             rgbRange[source1] = vals1[0];
+             rgbRange[source2] = vals2[0];
+             
+             rgb.setSamples(rgbRange, false);
           }
        }
 

@@ -184,12 +184,12 @@ public class GEOSTransform {
 
      double s_1 = h - s_n*Math.cos(x)*Math.cos(y);
      double s_2 = s_n*Math.sin(x)*Math.cos(y);
-     double s_3 = -s_n*Math.sin(y);
+     double s_3 = s_n*Math.sin(y);
 
      double s_xy = Math.sqrt(s_1*s_1 + s_2*s_2);
      double geographic_lon = Math.atan(s_2/s_1) + sub_lon;
 
-     double geographic_lat = Math.atan(-fp*(s_3/s_xy));
+     double geographic_lat = Math.atan(fp*(s_3/s_xy));
 
      double lonDegrees = RAD_TO_DEG*geographic_lon;
      double latDegrees = RAD_TO_DEG*geographic_lat;

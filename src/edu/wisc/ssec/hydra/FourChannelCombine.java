@@ -17,15 +17,19 @@ import java.awt.event.ActionEvent;
 
 import edu.wisc.ssec.adapter.MultiSpectralData;
 import edu.wisc.ssec.adapter.ReprojectSwath;
+import java.rmi.RemoteException;
 import visad.CoordinateSystem;
 
 import visad.Data;
 import visad.FieldImpl;
 import visad.FlatField;
 import visad.FunctionType;
+import visad.Linear1DSet;
 import visad.RealType;
 import visad.Linear2DSet;
 import visad.Set;
+import visad.SetType;
+import visad.VisADException;
 import visad.georef.MapProjection;
 
 public class FourChannelCombine extends Compute {
@@ -377,25 +381,42 @@ public class FourChannelCombine extends Compute {
        FunctionType ftypeA = (FunctionType) fldA.getType();
        Set dSetA = fldA.getDomainSet();
        
+       int mode = Hydra.getReprojectMode();
+       
+       int visadMode = Data.NEAREST_NEIGHBOR;
+       if (mode == 0) {
+          visadMode = Data.NEAREST_NEIGHBOR;
+       }
+       else if (mode == 2) {
+          visadMode = Data.WEIGHTED_AVERAGE;
+       }       
+       
        if (needResample && allGEOS) {
           fldA = Hydra.makeGEOSRadiansDomainField(fldA, (GEOSProjection) coordSysA);
           
           if (fldB != null) {
              fldB = Hydra.makeGEOSRadiansDomainField(fldB, (GEOSProjection)coordSysB);
+             if (!fldB.getDomainSet().equals(fldA.getDomainSet())) {
+                fldB = Hydra.goesResample(fldB, (Linear2DSet)fldA.getDomainSet());
+             }
           }
           if (fldC != null) {
              fldC = Hydra.makeGEOSRadiansDomainField(fldC, (GEOSProjection)coordSysC);
+             if (!fldC.getDomainSet().equals(fldA.getDomainSet())) {
+                fldC = Hydra.goesResample(fldC, (Linear2DSet)fldA.getDomainSet());
+             }
           }
           if (fldD != null) {
              fldD = Hydra.makeGEOSRadiansDomainField(fldD, (GEOSProjection)coordSysD);
+             if (!fldD.getDomainSet().equals(fldA.getDomainSet())) {
+                fldD = Hydra.goesResample(fldD, (Linear2DSet)fldA.getDomainSet());
+             }
           }
        }
        else if (needResample) {
           float[][] corners = MultiSpectralData.getLonLatBoundingCorners(fldA.getDomainSet());
           MapProjection mp = Hydra.getSwathProjection(corners);
           commonGrid = Hydra.makeGrid(mp, corners, nadirResolution);
-
-          int mode = Hydra.getReprojectMode();
 
           if (operandA.dataSource.getReduceBowtie(operandA.dataChoice)) {
              String sensorName = operandA.dataSource.getSensorName(operandA.dataChoice);
@@ -426,21 +447,21 @@ public class FourChannelCombine extends Compute {
           }
        }
 
-
+     
        FieldImpl fldAB = null;
        if (null != operationAB) switch (operationAB) {
          case "-":
-            fldAB = (FieldImpl) fldA.subtract(fldB);
+            fldAB = (FieldImpl) fldA.subtract(fldB, visadMode, Data.NO_ERRORS);
             break;
          case "+":
-            fldAB = (FieldImpl) fldA.add(fldB);
+            fldAB = (FieldImpl) fldA.add(fldB, visadMode, Data.NO_ERRORS);
             break;
          case "/":
-            fldAB = (FieldImpl) fldA.divide(fldB);
+            fldAB = (FieldImpl) fldA.divide(fldB, visadMode, Data.NO_ERRORS);
             fldAB = Hydra.infiniteToNaN(fldAB);
             break;
          case "*":
-            fldAB = (FieldImpl) fldA.multiply(fldB);
+            fldAB = (FieldImpl) fldA.multiply(fldB, visadMode, Data.NO_ERRORS);
             break;
          case " ":
             fldAB = fldA;
@@ -453,16 +474,16 @@ public class FourChannelCombine extends Compute {
        if (!operandD.isEmpty) {
           if (null != operationCD) switch (operationCD) {
              case "-":
-                fldCD = (FieldImpl) fldC.subtract(fldD);
+                fldCD = (FieldImpl) fldC.subtract(fldD, visadMode, Data.NO_ERRORS);
                 break;
              case "+":
-                fldCD = (FieldImpl) fldC.add(fldD);
+                fldCD = (FieldImpl) fldC.add(fldD, visadMode, Data.NO_ERRORS);
                 break;
              case "*":
-                fldCD = (FieldImpl) fldC.multiply(fldD);
+                fldCD = (FieldImpl) fldC.multiply(fldD, visadMode, Data.NO_ERRORS);
                 break;
              case "/":
-                fldCD = (FieldImpl) fldC.divide(fldD);
+                fldCD = (FieldImpl) fldC.divide(fldD, visadMode, Data.NO_ERRORS);
                 fldCD = Hydra.infiniteToNaN(fldCD);
                 break;
              default:
@@ -478,16 +499,16 @@ public class FourChannelCombine extends Compute {
        if (fldAB != null && fldCD != null) {
           if (null != operationLR) switch (operationLR) {
              case "-":
-                fld = (FlatField) fldAB.subtract(fldCD);
+                fld = (FlatField) fldAB.subtract(fldCD, visadMode, Data.NO_ERRORS);
                 break;
              case "+":
-                fld = (FlatField) fldAB.add(fldCD);
+                fld = (FlatField) fldAB.add(fldCD, visadMode, Data.NO_ERRORS);
                 break;
              case "*":
-                fld = (FlatField) fldAB.multiply(fldCD);
+                fld = (FlatField) fldAB.multiply(fldCD, visadMode, Data.NO_ERRORS);
                 break;
              case "/":
-                fld = (FlatField) fldAB.divide(fldCD);
+                fld = (FlatField) fldAB.divide(fldCD, visadMode, Data.NO_ERRORS);
                 fld = (FlatField) Hydra.infiniteToNaN(fld);
                 break;
              default:

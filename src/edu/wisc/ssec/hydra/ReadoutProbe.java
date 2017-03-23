@@ -312,18 +312,11 @@ public class ReadoutProbe extends SharableImpl implements PropertyChangeListener
             new Real(RealType.YAxis, y) }));
     }
 
-    /**
-     * Set the initial position of the probe.  This is used by the
-     * XML persistense.
-     *
-     * @param p  position
-     */
-    public void setPosition(RealTuple p) {
-        initPosition = p;
-    }
-
     public void setPosition(EarthLocationTuple lla)
             throws VisADException, RemoteException {
+        if (lla.getLongitude().isMissing() || lla.getLatitude().isMissing() || lla.getAltitude().isMissing()) {
+           return; // safegaurd: problems if NaN passed through
+        }
         double[] xyz = earthToBox(lla);
         double x = xyz[0];
         double y = xyz[1];

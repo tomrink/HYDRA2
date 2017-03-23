@@ -106,7 +106,7 @@ public class PreviewDisplay {
       displayCS = mapProjDsp.getDisplayCoordinateSystem();
       this.image = previewSelect.image;
       this.isLL = previewSelect.isLL;
-      hydraContext = previewSelect.hydraContext;
+      hydraContext = previewSelect.getHydraContext();
 
       double min = previewSelect.imageRange.getMin();
       double max = previewSelect.imageRange.getMax();
@@ -139,7 +139,7 @@ public class PreviewDisplay {
 
    SubsetRubberBandBox makeSubsetRubberBandBox() throws VisADException, RemoteException {
         final SubsetRubberBandBox rbb =
-            new SubsetRubberBandBox(isLL, image, ((MapProjectionDisplay)mapProjDsp).getDisplayCoordinateSystem(), 0, false);
+            new SubsetRubberBandBox(image, ((MapProjectionDisplay)mapProjDsp).getDisplayCoordinateSystem(), 0, false);
         rbb.setColor(Color.green);
         rbb.addAction(new CellImpl() {
            boolean init = false;
@@ -201,8 +201,8 @@ public class PreviewDisplay {
                boxDsp.setData(set2D);
 
                hydraContext.setMultiDimensionSubset(new MultiDimensionSubset(map));
-               hydraContext.setLast(hydraContext);
                hydraContext.setSelectBox(new visad.Tuple(new Data[] {set2D, set2D_lonlat}));
+               HydraContext.setLastManual(hydraContext);
                Hydra.resetSharedProjection();
              }
            }
